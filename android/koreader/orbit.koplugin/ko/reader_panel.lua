@@ -89,12 +89,8 @@ function ReaderSheet:rowWidget(block,w,h,mt)
     end
     return widget
 end
-local surface
 function ReaderSheet:build()
     local finish=Budgets.span(self.screen..".draw",now_s,log)
-    if not surface then
-        surface=setfenv(assert(loadfile(SOURCE_DIR.."/ko/ui/reader_surface.lua")),getfenv(1))()
-    end
     self.focus_controls={}
     if self.screen=="details" then
         EndSheet.build(self)
@@ -106,7 +102,7 @@ function ReaderSheet:build()
         finish();return
     end
     local previous=self[1]
-    surface.build(self)
+    ReaderSurface.build(self)
     if previous and previous.free then previous:free() end
     if self.keyboard_focus then
         local current=self.focus_controls[self.focus_index or 1]

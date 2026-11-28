@@ -493,10 +493,6 @@
     "kind": "service",
     "purpose": "Private lifecycle/sync/capability/update policy; pure functions remain behind the interface."
   },
-  "ko/local_reading_settings.lua": {
-    "layer": "ui",
-    "purpose": "Bounded device-local completion and yearly goal Settings presentation through Library."
-  },
   "ko/ui/settings_page.lua": {
     "layer": "ui",
     "purpose": "Settings page and modal composition over the shared UI kit."
@@ -512,5 +508,9 @@
   "ko/ui/catalog.lua": {
     "layer": "ui",
     "purpose": "Owned catalog, filter, storage and finish composition over the shared UI kit."
+  },
+  "ko/ui/reader_surface.lua": {
+    "layer": "ui",
+    "purpose": "Reader panel and navigation composition over the shared UI kit; caller owns bounded values and gates."
   }
 }

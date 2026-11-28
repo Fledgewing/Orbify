@@ -58,13 +58,14 @@ def review(device,out,seed_books=True):
     device.shell("svc","power","stayon","true")
     device.shell("input","keyevent","224")
     device.wait_companion();device.dismiss_color_notice()
+    device.command('local w=top();if w and type(w.text)=="string" and w.text:find("BookSync Companion needs",1,true) then click("Later") end;local ui=liveUI();if ui and ui.document then ui:onClose() end;HomeHost.show();return true')
     device.command('Library.companion.setupLater();Library.settings.write("news_012_pending",false);return true')
     device.command('AccountView.open();AccountView.active:command("account.signIn",{server="https://fixture.example.test",username="reader",password="fixture"});return true')
     deadline=time.monotonic()+20
     while device.command('return AccountView.active.state.signedIn and "ready" or "pending"')!="ready":
         if time.monotonic()>deadline:raise TimeoutError("fixture sign-in")
         time.sleep(.2)
-    device.command('AccountView.active:close();assert(HomeEditor.save(Layout.default()));Library.settings.write("last_sleep_sync",{at=os.time()-720,ok=true});Library.retry();HomeHost.show();assert(HomeHost.document().pages[1].placements[2].h==2);return true')
+    device.command('AccountView.active:close();local w=top();if w and type(w.text)=="string" and w.text:find("BookSync Companion needs",1,true) then click("Later") end;assert(HomeEditor.save(Layout.default()));Library.settings.write("last_sleep_sync",{at=os.time()-720,ok=true});Library.retry();HomeHost.show();assert(HomeHost.document().pages[1].placements[2].h==2);return true')
     device.wait_projection()
     device.command("UI:forceRePaint();return true")
     deadline=time.monotonic()+20

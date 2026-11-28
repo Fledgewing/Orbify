@@ -13,6 +13,7 @@ object ServerAdapters {
     private var context: Context? = null
     private val root get() = Worker.root()
     private val deviceSnapshot=ThreadLocal<DeviceLibrary>()
+    private val pendingProjection=java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
     private fun newBooks()=DeviceLibrary(listOf(File(android.os.Environment.getExternalStorageDirectory(), "Books")), root)
     private val books get() = deviceSnapshot.get() ?: newBooks()
     private fun <T> readBatch(block:()->T):T {
@@ -168,8 +169,13 @@ object ServerAdapters {
             }
             val raw=i.getStringExtra("library_batch") ?: return
             val owner=i.getStringExtra("owner") ?: return
+            // A cold native sidecar scan can outlast several paint polls. One
+            // publication satisfies all identical pending requests; never queue
+            // duplicate scans ahead of the next visible screen's projection.
+            val key=owner+raw
+            if(!pendingProjection.add(key)) return
             BulkWork.executor.execute {
-                runCatching {
+                try { runCatching {
                     val requests=LuaValue.parse(LuaValue.str(raw).toByteArray(Charsets.ISO_8859_1)) as List<*>
                     projectionStore(root).use { store ->
                         store.db().exec("INSERT OR REPLACE INTO meta(k,v) VALUES ('owner',?)", OWNER)
@@ -177,6 +183,7 @@ object ServerAdapters {
                     }
                     event()
                 }.onFailure { OLog.w("emulator fixture projection failed",it) }
+                } finally { pendingProjection.remove(key) }
             }
         }
     }

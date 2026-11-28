@@ -41,6 +41,8 @@ def review(device,out):
             time.sleep(.1)
     def check(name,code='return true'):
         device.command(code)
+        device.command('UI:forceRePaint();return true')
+        time.sleep(.2)
         device.shot(out/(name+'.png'))
         checks.append(name)
         (out/'checks.json').write_text(json.dumps(checks,indent=2)+'\n')
@@ -57,7 +59,7 @@ def review(device,out):
     def key(name):device.shell('input','keyevent',name)
     def dismissed():wait('return not RemindersUI.current and "ready" or "pending"')
     def row(index):
-        device.command('local v=SettingsView.active;v.offset='+str((index-1)//4*4)+';v:paint();v.dialog.buttons['+str((index-1)%4+1)+'][1].callback();return true')
+        device.command('local v=SettingsView.active;local n=v.screen=="reminders-list" and 4 or 8;local i='+str(index)+';v.offset=math.floor((i-1)/n)*n;v:paint();v.dialog.buttons[(i-1)%n+1][1].callback();return true')
     def close_settings():
         device.command('while SettingsView.active do SettingsView.active:close() end;return true')
     def time_row(minute):
@@ -85,6 +87,7 @@ def review(device,out):
     device.shell('am','force-stop','org.koreader.launcher')
     device.shell('am','start','-n','org.koreader.launcher/.MainActivity')
     device.wait_companion()
+    device.command('Library.companion.setupLater();local w=top();if w and type(w.text)=="string" and w.text:find("BookSync Companion needs",1,true) then click("Later") end;return true')
     device.command('local t=top();if t and t.text then UI:close(t) end;while SettingsView.active do SettingsView.active:close() end;local ui=require("apps/reader/readerui").instance;if ui then ui:onClose() end;HomeHost.show();return true')
     clear_times()
     # Actual Settings drafts: changing a field never writes until Save.
@@ -93,7 +96,7 @@ def review(device,out):
     check('empty-and-eye-off')
     row(1);row(1);row(2);row(2)
     wait('return SettingsView.active.title=="Rest your eyes" and "ready" or "pending"')
-    check('interval-30-draft')
+    check('interval-30-draft','local v=SettingsView.active;local save=v.dialog:getButtonById("setting-3");assert(save and save.dimen.y+save.dimen.h<=Device.screen:getHeight());assert(not v.dialog:getButtonById("next"));return true')
     row(3)
     wait('return SettingsView.active.title=="Reminders" and "ready" or "pending"')
     invoke('list');device.command('for _,r in ipairs(Library._reminderResult.items) do if r.kind=="interval" then assert(r.enabled and r.intervalMinutes==30) end end;return true')

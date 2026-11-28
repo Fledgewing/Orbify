@@ -32,7 +32,7 @@ def companion_information(device,out,checks):
         x1,y1,x2,y2=map(int,re.findall(r'\d+',bounds))
         device.shell('input','tap',str((x1+x2)//2),str((y1+y2)//2))
     device.shell('am','start','-W','-n','net.fledgewing.orbitcompanion/.LauncherActivity')
-    tap('⚙  Settings');tap('Reading and Home')
+    tap('Settings');tap('Reading and Home')
     node('Reminders');node('Set reminders in BookSync reader settings')
     device.shot(out/'companion-information-row.png')
     if 'companion-information-row' not in checks:checks.append('companion-information-row')
@@ -66,7 +66,7 @@ def review(device,out):
         wait('return Library._extraReminder and "ready" or "pending"')
         device.command('assert(not Library._extraReminder.error,Library._extraReminder.error);return true')
     def row(i):
-        device.command('local v=SettingsView.active;v.offset='+str((i-1)//4*4)+';v:paint();v.dialog.buttons['+str((i-1)%4+1)+'][1].callback();return true')
+        device.command('local v=SettingsView.active;local n=v.screen=="reminders-list" and 4 or 8;local i='+str(i)+';v.offset=math.floor((i-1)/n)*n;v:paint();v.dialog.buttons[(i-1)%n+1][1].callback();return true')
     def close():device.command('while SettingsView.active do SettingsView.active:close() end;return true')
     def clear():
         invoke('list');device.command('Library._extraRows=Library._extraReminder.items;return true')

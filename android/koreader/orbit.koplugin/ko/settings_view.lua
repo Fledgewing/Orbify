@@ -37,7 +37,7 @@ function SettingsView:paint(attempt)
     assert(#items<=(Budgets.get("screens",self.screen).displayRows or Budgets.get("screens",self.screen).rows),"Settings display row budget exceeded")
     -- Reserve the title/navigation and a tall mode card. Every action is at least 50 px.
     local screen=Device.screen
-    local pageSize=self.screen:match("^reminders") and 4 or self.screen=="settings" and 9 or self.screen=="settings-sync" and 8 or math.max(1,math.min(10,math.floor((screen:getHeight()-screen:getWidth()/702*160)/(screen:getWidth()/702*73))))
+    local pageSize=self.screen=="reminders-list" and 4 or self.screen=="reminders-editor" and 8 or self.screen=="settings" and 9 or self.screen=="settings-sync" and 8 or math.max(1,math.min(10,math.floor((screen:getHeight()-screen:getWidth()/702*160)/(screen:getWidth()/702*73))))
     self.offset=math.min(self.offset,math.max(0,math.floor((#items-1)/pageSize)*pageSize))
     if self.choiceFocus then
         self.choiceFocus=nil
@@ -114,7 +114,7 @@ function SettingsView:paint(attempt)
             if row and row.section then display[#display].h=screen:getWidth()/702*42;display[#display].callback=nil end
         end
     end
-    local dialog=SettingsPage.new{title=self.title,subtitle=self.notice or (self.screen=="settings" and "Everything day to day, without the companion" or "BookSync settings"),
+    local pageOptions={title=self.title,subtitle=self.notice or (self.screen=="settings" and "Everything day to day, without the companion" or "BookSync settings"),
         root=self.screen=="settings",backText=self.screen=="settings" and "Home" or "Back",rows=display,onBack=function() self:back() end,
         content=function(K,c,w,y,put)
             if #items>pageSize then
@@ -124,6 +124,7 @@ function SettingsView:paint(attempt)
                 put(K.button{text="›",w=p(52),variant="outline",enabled=self.offset+pageSize<#items,callback=nav[4].callback},w/2+p(60),screen:getHeight()-p(66),"next")
             end
         end}
+    local dialog=self.screen:match("^reminders") and RemindersUI.page(self,items,buttons,nav,pageSize) or SettingsPage.new(pageOptions)
     dialog.updateItems=function() if self.alive and UIManager:getTopmostVisibleWidget()==self.dialog then self:paint() end end
     dialog.buttons=buttons
     dialog.focus={1,math.min(self.focus or 1,#buttons)}

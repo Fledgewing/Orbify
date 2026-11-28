@@ -158,4 +158,23 @@ return function(test,eq,ok,E,W,Widget)
         end)
     end)
 
+    test("Reminders presentation: editor Save/Delete stay with the draft; saved lists page four rows",function()
+        withUI(function()
+            local render=E.RemindersUI.page
+            E.RemindersUI.page=function() return Widget:new{} end
+            local success,why=pcall(function()
+                local rows={}
+                for _,text in ipairs({"Reminder","Time","Days","Message","Save","Delete"}) do rows[#rows+1]={text=text} end
+                local editor=E.SettingsView.open("Edit reminder",function() return rows end,"reminders-editor")
+                eq(#editor.dialog.buttons,7);eq(editor.dialog.buttons[5][1].text,"Save");eq(editor.dialog.buttons[6][1].text,"Delete")
+                eq(button(editor,"next"),nil);editor:close()
+                for i=7,10 do rows[i]={text="Reminder "..i} end
+                local list=E.SettingsView.open("Reminders",function() return rows end,"reminders-list")
+                eq(#list.dialog.buttons,5);ok(button(list,"next"));button(list,"next").callback()
+                eq(list.offset,4);eq(list.dialog.buttons[1][1].text,"Save");list:close()
+            end)
+            E.RemindersUI.page=render;ok(success,why)
+        end)
+    end)
+
 end

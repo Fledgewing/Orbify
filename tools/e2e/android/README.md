@@ -210,3 +210,20 @@ and captures both. It stops only the two apps on that explicit emulator before
 replacing its DB and removing its WAL/SHM files. `home_details.py` captures the
 compact local-series card and verifies unavailable end-of-book pace. Both tools
 use the same guarded Emulator and fake ServerAdapter as Home acceptance.
+
+
+Final build gallery: after `home.py`, `home_stats.py` and `reader_panels.py`, run
+`final_gallery.py --serial emulator-N --out <gallery> --reminder-crops <approved-reminder-images>
+--approved-crops <approved-native-family-images>`. Use 1404×1872 at 300 dpi.
+It captures every listed reader/companion surface in both real fixture account states,
+uses the reminder service's injected clocks for actual due sheets, and verifies Android
+HOME while signed out, the MAIN/LAUNCHER icon route, and ten native open/tap-top/close/HOME
+cycles. `user-path-logcat.txt` retains the complete log for those paths. Original
+native PNGs remain unchanged; comparison WebPs normalize only the approval crop.
+The builder retains both Home and ReminderClock fixtures. Identical pending fake
+adapter batches coalesce so cold native sidecar scans cannot queue duplicate work
+ahead of the next visible screen. Deadlines are unchanged and scenario failures stop.
+Reminder editors retain all draft fields plus Save/Delete on one page; only saved
+lists page four rows. Due sheets preserve the one-use claim, gate and consumed-input
+contract while sharing kit type, actions and rounded sheet surfaces. Native companion
+reminder discoverability inherits `CompanionStyle` through the common row factory.

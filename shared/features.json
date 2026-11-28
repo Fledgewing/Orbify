@@ -6954,7 +6954,7 @@
       "platforms": {
         "android": {
           "status": "partial",
-          "note": "Eight local bedtime schedules, recurrence, missed window, snooze, durable claims and explicit native Sleep.",
+          "note": "Eight local bedtime schedules, recurrence, missed window, snooze, durable claims and explicit native Sleep. Settings and claimed sheets use the shared UI kit; companion discoverability uses the shared native style.",
           "reason": "deliberately deferred: maintainer moved this to 0.12.1; physical acceptance and publication remain.",
           "evidence": [
             {
@@ -6966,7 +6966,7 @@
         "x4_pro": {
           "status": "missing",
           "note": "Approved cross-platform implementation is tracked separately.",
-          "reason": "deliberately deferred: maintainer moved this to 0.12.1; the firmware worker owns implementation and profile acceptance; this PR implements Android only.",
+          "reason": "deliberately deferred: maintainer moved this to 0.12.1; the firmware worker owns implementation and profile acceptance; this PR implements Android only. Slice F1 changes Android presentation only; the approved firmware design remains separate.",
           "evidence": [
             {
               "path": "docs/design/reminders.md",
@@ -6977,7 +6977,7 @@
         "x4": {
           "status": "missing",
           "note": "Approved cross-platform implementation is tracked separately.",
-          "reason": "deliberately deferred: maintainer moved this to 0.12.1; the firmware worker owns implementation and profile acceptance; this PR implements Android only.",
+          "reason": "deliberately deferred: maintainer moved this to 0.12.1; the firmware worker owns implementation and profile acceptance; this PR implements Android only. Slice F1 changes Android presentation only; the approved firmware design remains separate.",
           "evidence": [
             {
               "path": "docs/design/reminders.md",
@@ -6988,7 +6988,7 @@
         "x3": {
           "status": "missing",
           "note": "Approved cross-platform implementation is tracked separately.",
-          "reason": "deliberately deferred: maintainer moved this to 0.12.1; the firmware worker owns implementation and profile acceptance; this PR implements Android only.",
+          "reason": "deliberately deferred: maintainer moved this to 0.12.1; the firmware worker owns implementation and profile acceptance; this PR implements Android only. Slice F1 changes Android presentation only; the approved firmware design remains separate.",
           "evidence": [
             {
               "path": "docs/design/reminders.md",
@@ -7006,7 +7006,7 @@
       "platforms": {
         "android": {
           "status": "partial",
-          "note": "Singleton 20/30/45/60-minute active-reading interval, five-minute reset, quiet Done/Turn off sheet and bedtime priority.",
+          "note": "Singleton 20/30/45/60-minute active-reading interval, five-minute reset, quiet Done/Turn off sheet and bedtime priority. Settings and claimed sheets use the shared UI kit; companion discoverability uses the shared native style.",
           "reason": "deliberately deferred: maintainer moved this to 0.12.1; physical acceptance and publication remain.",
           "evidence": [
             {
@@ -7018,7 +7018,7 @@
         "x4_pro": {
           "status": "missing",
           "note": "Approved cross-platform implementation is tracked separately.",
-          "reason": "deliberately deferred: maintainer moved this to 0.12.1; the firmware worker owns implementation and profile acceptance; this PR implements Android only.",
+          "reason": "deliberately deferred: maintainer moved this to 0.12.1; the firmware worker owns implementation and profile acceptance; this PR implements Android only. Slice F1 changes Android presentation only; the approved firmware design remains separate.",
           "evidence": [
             {
               "path": "docs/design/reminders.md",
@@ -7029,7 +7029,7 @@
         "x4": {
           "status": "missing",
           "note": "Approved cross-platform implementation is tracked separately.",
-          "reason": "deliberately deferred: maintainer moved this to 0.12.1; the firmware worker owns implementation and profile acceptance; this PR implements Android only.",
+          "reason": "deliberately deferred: maintainer moved this to 0.12.1; the firmware worker owns implementation and profile acceptance; this PR implements Android only. Slice F1 changes Android presentation only; the approved firmware design remains separate.",
           "evidence": [
             {
               "path": "docs/design/reminders.md",
@@ -7040,7 +7040,7 @@
         "x3": {
           "status": "missing",
           "note": "Approved cross-platform implementation is tracked separately.",
-          "reason": "deliberately deferred: maintainer moved this to 0.12.1; the firmware worker owns implementation and profile acceptance; this PR implements Android only.",
+          "reason": "deliberately deferred: maintainer moved this to 0.12.1; the firmware worker owns implementation and profile acceptance; this PR implements Android only. Slice F1 changes Android presentation only; the approved firmware design remains separate.",
           "evidence": [
             {
               "path": "docs/design/reminders.md",

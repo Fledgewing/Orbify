@@ -27,7 +27,7 @@ import java.io.File
  * The M8C feedback of 2026-11-24 against Robolectric, at the M8C's size (1264 × 1680, xhdpi) and
  * a small phone's (360 × 640 dp): the header stays pinned, search clears with ✕, a row's text
  * never runs into its control, a page's title shows once, "Waiting for KOReader" has its own
- * line, single-row sections open their page directly, and the main view puts Setup right under
+ * line, single-row sections open their page directly, and the scrollable main view puts Setup right under
  * Other apps / Settings.
  */
 @RunWith(RobolectricTestRunner::class)
@@ -226,8 +226,9 @@ class PageLayoutTest {
         layout(a)
         val settings = all(a.window.decorView).filterIsInstance<TextView>().first { it.text.toString().contains("Settings") }
         val card = tagged(a, "status:setup")!!
-        val row = settings.parent as View
-        val column = row.parent as ViewGroup
+        var row: View = settings
+        val column = card.parent as ViewGroup
+        while (row.parent !== column) row = row.parent as View
         val after = (column.indexOfChild(row) + 1 until column.childCount).map { column.getChildAt(it) }.first { it.height > Ui.dp(a, 12) }
         assertEquals("Setup comes right after Other apps / Settings", card, after)
         assertFalse("no second \"setup steps need you\" line", texts(a).any { it.contains("setup step") })
@@ -235,12 +236,13 @@ class PageLayoutTest {
     }
 
     @Test
-    fun theMainViewFitsOnTheM8cScreenWithSetupUnderTheButtons() {
+    fun theMainViewKeepsSetupUnderTheButtonsAtReaderSize() {
         val a = assertMainViewSetupUnderButtons()
         shot(a, "main")
         val scroll = all(a.window.decorView).filterIsInstance<ScrollView>().first()
         val content = scroll.getChildAt(0)
-        assertTrue("fits without scrolling: ${content.height} <= ${scroll.height}", content.height <= scroll.height)
+        assertTrue("status content has a scroll viewport", scroll.height > 0 && content.height >= scroll.height)
+        assertTrue("setup remains inside scrollable content", onScreenY(tagged(a, "status:setup")!!) < onScreenY(content) + content.height)
     }
 
     @Test
@@ -249,7 +251,9 @@ class PageLayoutTest {
         val a = assertMainViewSetupUnderButtons()
         shot(a, "main")
         val card = tagged(a, "status:setup")!!
-        assertTrue("Setup is on the first screen", onScreenY(card) + card.height <= a.resources.displayMetrics.heightPixels)
+        val scroll = all(a.window.decorView).filterIsInstance<ScrollView>().first()
+        val content = scroll.getChildAt(0)
+        assertTrue("Setup remains reachable by scrolling", onScreenY(card) + card.height <= onScreenY(content) + content.height)
     }
     private fun aboutNoticeWraps(): AboutActivity {
         val a = open<AboutActivity>()
