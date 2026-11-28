@@ -234,22 +234,35 @@ class PageLayoutTest {
         return a
     }
 
-    @Test
-    fun theMainViewFitsOnTheM8cScreenWithSetupUnderTheButtons() {
-        val a = assertMainViewSetupUnderButtons()
-        shot(a, "main")
+    // V5's shared text floor replaces the old fit-by-downscaling rule. Keep
+    // Setup immediately after the buttons and reachable on smaller viewports.
+    private fun assertSetupReachableByScrolling(a: LauncherActivity) {
         val scroll = all(a.window.decorView).filterIsInstance<ScrollView>().first()
-        val content = scroll.getChildAt(0)
-        assertTrue("fits without scrolling: ${content.height} <= ${scroll.height}", content.height <= scroll.height)
+        val card = tagged(a, "status:setup")!!
+        assertTrue("Setup has content", card.height > 0)
+        scroll.scrollTo(0, onScreenY(card) - onScreenY(scroll))
+        val top = onScreenY(card)
+        assertTrue("Setup starts inside the scroll viewport", top >= onScreenY(scroll))
+        assertTrue("Setup can be reached without shrinking type", top < onScreenY(scroll) + scroll.height)
+        if (card.height <= scroll.height) {
+            assertTrue("a fitting Setup card is fully reachable", top + card.height <= onScreenY(scroll) + scroll.height)
+        }
+        scroll.scrollTo(0, 0)
+    }
+
+    @Test
+    fun theMainViewKeepsSetupUnderTheButtonsAtTheSharedM8cScale() {
+        val a = assertMainViewSetupUnderButtons()
+        assertSetupReachableByScrolling(a)
+        shot(a, "main")
     }
 
     @Test
     @Config(qualifiers = "w360dp-h640dp-port-xxhdpi")
-    fun theMainViewKeepsSetupUnderTheButtonsOnASmallPhone() {
+    fun theMainViewKeepsSetupReachableOnASmallPhone() {
         val a = assertMainViewSetupUnderButtons()
+        assertSetupReachableByScrolling(a)
         shot(a, "main")
-        val card = tagged(a, "status:setup")!!
-        assertTrue("Setup is on the first screen", onScreenY(card) + card.height <= a.resources.displayMetrics.heightPixels)
     }
     private fun aboutNoticeWraps(): AboutActivity {
         val a = open<AboutActivity>()
