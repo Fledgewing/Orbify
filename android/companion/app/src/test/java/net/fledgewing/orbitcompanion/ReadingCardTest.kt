@@ -83,8 +83,8 @@ class ReadingCardTest {
             // Independent neutral server adapter: no protocol or production adapter construction.
             val adapter=object: ServerAdapter {
                 override val id="fixture"
-                override fun localFiles(owner:String)=DeviceLibrary(roots).localFiles(DeviceLibrary.OWNER)
-                override fun project(owner:String,request:Map<*,*>)=DeviceLibrary(roots).project(DeviceLibrary.OWNER,request)
+                override fun localFiles(owner:String)=DeviceLibrary(roots,clock={now}).localFiles(DeviceLibrary.OWNER)
+                override fun project(owner:String,request:Map<*,*>)=DeviceLibrary(roots,clock={now}).project(DeviceLibrary.OWNER,request)
             }
             fun request(op:String, extra:Map<String,Any?> = emptyMap())=String(LuaValue.encode(
                 mapOf("op" to op,"source" to "all","limit" to 2,"bytes" to 16384)+extra),Charsets.ISO_8859_1)
@@ -119,6 +119,7 @@ class ReadingCardTest {
             assertEquals(2,aggregates)
             val before=owners.associateWith(::card)
             for(row in before.values) {
+                assertEquals(Instant.ofEpochSecond(now).toString(),row["added"])
                 assertEquals(cover.path,row["cover_path"])
                 assertEquals(true,(row["available"] as Map<*,*>)["cover"])
                 assertEquals("Moon · Book 2",LuaValue.utf8(row["series_line"] as String))

@@ -12,7 +12,10 @@ import json
 from pathlib import Path
 import re
 import sys
-import shutil
+import tempfile
+import struct
+from datetime import datetime
+from zoneinfo import ZoneInfo
 import time
 import xml.etree.ElementTree as ET
 from PIL import Image, ImageDraw
@@ -46,7 +49,8 @@ REMINDERS = {
 }
 NATIVE_REFS = {'companion-status':'launcher.png', 'checklist':'checklist-0.png',
                'companion-settings':'settings.webp', 'companion-reading':'settings-reading.webp',
-               'crash-summary':'crash-1.png', 'goal':'goal-1.png'}
+               'crash-summary':'crash-1.png', 'goal':'goal-0.png', 'goal-editor':'goal-1.png',
+               'reader-companion-status':'reader-0.png', 'reader-companion-helpers':'reader-1.png'}
 
 
 def wait(d, code, timeout=30):
@@ -75,11 +79,12 @@ def native_tap(d, text, prefix=False):
 
 def capture(d,out,state):
     folder=out/state;folder.mkdir(parents=True,exist_ok=True)
+    d.shell('am','start','-n','org.koreader.launcher/.MainActivity');d.wait_companion()
     receipt=[]
     def shot(name,code=None,ready=None):
         if code: d.command(code+';return true')
         if ready: wait(d,ready)
-        d.wait_projection();d.command('UI:forceRePaint();return true');time.sleep(.3)
+        d.wait_projection();d.command('assert(Library.isForeground());UI:forceRePaint();return true');time.sleep(.3)
         d.shot(folder/(name+'.png'));receipt.append(name)
         assert Image.open(folder/(name+'.png')).size==(1404,1872)
         (folder/'screens.json').write_text(json.dumps(receipt,indent=2)+'\n')
@@ -89,7 +94,7 @@ def capture(d,out,state):
         (folder/'screens.json').write_text(json.dumps(receipt,indent=2)+'\n')
         print(state+'/'+name,flush=True)
     def home():
-        d.command(CLEAN+'local ui=liveUI();if ui and ui.document then ui:onClose() end;HomeHost.show();return true')
+        d.command(CLEAN+'local w=top();if w and type(w.text)=="string" and w.text:find("BookSync Companion needs",1,true) then click("Later") end;local ui=liveUI();if ui and ui.document then ui:onClose() end;HomeHost.show();return true')
         d.wait_projection()
     home()
     op='account.signIn' if state=='signed-in' else 'account.signOut'
@@ -121,6 +126,9 @@ def capture(d,out,state):
          'local s=ReaderPanel.sheet;return s and s.navigation_kind=="search" and s.navigation.total~=nil and "ready" or "pending"')
     shot('end-of-book','ReaderPanel.close();FinishUI.showSheet(liveUI(),Library.nativeReader(liveUI()))',
          'local s=FinishUI.sheet;return s and s.model and not s.model.pending and "ready" or "pending"')
+    d.command('FinishUI.closeSheet();return true')
+    shot('reader-companion-status','ReaderCompanionView.open("status")')
+    shot('reader-companion-helpers','ReaderCompanionView.active.page="helpers";ReaderCompanionView.active:paint()')
     home()
     for section in ('root','sync','library','reading','home','sleep','updates','about'):
         shot('settings-'+section,'plugin:showSettings('+('' if section=='root' else json.dumps(section))+')')
@@ -156,11 +164,11 @@ def capture(d,out,state):
     shot('rest-eyes-interval','SettingsView.active.dialog.buttons[2][1].callback()')
     d.command(CLEAN+'return true')
     # Same MAIN/LAUNCHER intent used by Android's app icon, separate from HOME.
-    d.shell('am','start','-W','-a','android.intent.action.MAIN','-c','android.intent.category.LAUNCHER','-n',PACKAGE+'/.StatusActivity')
+    d.shell('am','start','-W','-f','0x14000000','-a','android.intent.action.MAIN','-c','android.intent.category.LAUNCHER','-n',PACKAGE+'/.StatusActivity')
     native_shot('companion-status')
     native_tap(d,'Setup:',prefix=True);native_shot('checklist')
     d.shell('input','keyevent','KEYCODE_BACK');native_tap(d,'Settings');native_shot('companion-settings')
-    native_tap(d,'Reading and Home');native_shot('companion-reading')
+    native_tap(d,'Reading and Home');native_tap(d,'Reminders');native_shot('companion-reading')
     d.shell('am','start','-W','-f','0x18000000','-n',PACKAGE+'/.CrashFixtureActivity')
     for _ in range(5):
         if any(n.get('text')=='Companion crashes' for n in nodes(d)):break
@@ -168,6 +176,74 @@ def capture(d,out,state):
     native_shot('crash-summary')
     d.shell('am','start','-n','org.koreader.launcher/.MainActivity');d.wait_companion()
     return receipt
+
+
+def due_captures(d,folder):
+    """Three real claimed occurrences per account state, after full policy acceptance."""
+    zone=ZoneInfo(d.shell('getprop','persist.sys.timezone') or 'UTC')
+    wall=int(datetime(2026,11,27,20,0,tzinfo=zone).timestamp()*1000)
+    elapsed=int(float(d.shell('cat','/proc/uptime').split()[0])*1000)
+    def clock(ms=0):
+        nonlocal wall,elapsed
+        wall+=ms;elapsed+=ms
+        with tempfile.TemporaryDirectory() as tmp:
+            f=Path(tmp)/'clock';f.write_text(f'{wall} {elapsed} 0')
+            d.push(f,'/sdcard/koreader/settings/e2e-reminder-clock.new')
+            d.shell('mv','/sdcard/koreader/settings/e2e-reminder-clock.new','/sdcard/koreader/settings/e2e-reminder-clock')
+    def invoke(op,args='{}'):
+        d.command('Library._dueResult=nil;Library.remindersCommand('+json.dumps(op)+','+args+',function(r) Library._dueResult=r end);return true')
+        wait(d,'return Library._dueResult and "ready" or "pending"')
+        d.command('assert(not Library._dueResult.error);return true')
+    def clear():
+        invoke('list');d.command('Library._dueRows=Library._dueResult.items;return true')
+        for i in range(1,int(d.command('return #Library._dueRows'))+1):
+            if d.command('return Library._dueRows['+str(i)+'].kind=="time"')=='true':
+                invoke('delete','{id=Library._dueRows['+str(i)+'].id,revision=Library._dueRows['+str(i)+'].revision,mutation="due-delete-'+str(wall)+'-'+str(i)+'"}')
+    def interval(on):
+        invoke('list');d.command('for _,r in ipairs(Library._dueResult.items) do if r.kind=="interval" then Library._dueEye=r end end;return true')
+        invoke('edit','{id=Library._dueEye.id,revision=Library._dueEye.revision,kind="interval",enabled='+str(on).lower()+',intervalMinutes=20,mutation="due-eye-'+str(wall)+'-'+str(on)+'"}')
+    def tick():
+        d.command('Library.reminders.activity();Library.reminders.tick();return true')
+        wait(d,'return not Library.reminders.busy and "ready" or "pending"')
+    def add():
+        invoke('list');minute=datetime.fromtimestamp(wall/1000,zone)
+        minute=(minute.hour*60+minute.minute+1)%1440
+        invoke('add','{kind="time",enabled=true,minuteOfDay='+str(minute)+',days=127,message="",mutation="a:"..string.format("%.0f",Library._dueResult.revision)..":due-'+str(wall)+'"}')
+    def sheet(kind,name):
+        wait(d,'return RemindersUI.current and RemindersUI.current.value.kind=='+json.dumps(kind)+' and "ready" or "pending"')
+        d.command('UI:forceRePaint();return true');time.sleep(.2);d.shot(folder/(name+'.png'))
+        d.shell('input','keyevent','KEYCODE_BACK')
+        wait(d,'return not RemindersUI.current and "ready" or "pending"')
+    d.command(CLEAN+'return true');clock()
+    for pkg in ('org.koreader.launcher',PACKAGE):d.shell('am','force-stop',pkg)
+    d.shell('am','start','-n',PACKAGE+'/.LauncherActivity');d.shell('am','start','-n','org.koreader.launcher/.MainActivity');d.wait_companion()
+    d.command('Library.companion.setupLater();local w=top();if w and type(w.text)=="string" and w.text:find("BookSync Companion needs",1,true) then click("Later") end;return true')
+    clear();interval(False)
+    d.command('Library.open({local_path='+json.dumps(BOOK)+'});return true')
+    wait(d,'return inBook() and "ready" or "pending"')
+    add();tick();clock(60000);tick();sheet('time','reminder-sheet');clear();clock(1)
+    add();d.command('Library.reminders.asleep=true;return true');tick();clock(61*60000)
+    d.command('Library.reminders.asleep=false;return true');tick();sheet('time','missed-reminder');clear();clock(1)
+    interval(True);tick()
+    for _ in range(20):clock(60000);tick()
+    sheet('interval','rest-eyes-sheet');clock(1);interval(False)
+    (folder/'due-checks.json').write_text(json.dumps({'claimed_sheets':3,'fake_clocks':'disposable APK only','account_state_unchanged':True},indent=2)+'\n')
+
+
+def seed_diagnostic(d):
+    d.shell('am','start','-W','-f','0x18000000','-n',PACKAGE+'/.CrashFixtureActivity','--ez','reset','true')
+    d.shell('run-as',PACKAGE,'rm','-f','no_backup/companion-crashes.bin')
+    d.shell('am','start','-n','org.koreader.launcher/.MainActivity')
+    for count in (1,2):
+        d.shell('am','broadcast','--include-stopped-packages','-n',PACKAGE+'/.CrashFixtureReceiver')
+        deadline=time.monotonic()+30
+        while True:
+            try:
+                raw=d.adb('exec-out','run-as',PACKAGE,'cat','no_backup/companion-crashes.bin')
+                if struct.unpack('>i',raw[-4:])[0]==count:break
+            except Exception:pass
+            if time.monotonic()>deadline:raise TimeoutError('synthetic diagnostic not saved')
+            time.sleep(.2)
 
 
 def user_path(d,out):
@@ -186,8 +262,9 @@ def user_path(d,out):
         d.shot(out/'home-signed-out-path.png');events.append('Signed-out Android HOME lands on BookSync Home')
         d.shell('am','start','-W','-a','android.intent.action.MAIN','-c','android.intent.category.LAUNCHER','-n',PACKAGE+'/.StatusActivity')
         resumed=d.shell('dumpsys','activity','activities')
-        assert any(PACKAGE+'/.StatusActivity' in line for line in resumed.splitlines() if 'ResumedActivity' in line)
-        d.shot(out/'launcher-icon-path.png');events.append('MAIN/LAUNCHER icon intent keeps companion StatusActivity foreground')
+        assert any(PACKAGE in line for line in resumed.splitlines() if 'ResumedActivity' in line)
+        d.shot(out/'launcher-icon-path.png');events.append('MAIN/LAUNCHER icon intent keeps the companion foreground')
+        time.sleep(2.1)  # HOME's documented double-press window is two seconds.
         d.shell('input','keyevent','KEYCODE_HOME');time.sleep(.5)
         for i in range(10):
             d.command('Library.open({local_path='+json.dumps(BOOK)+'});return true')
@@ -195,6 +272,7 @@ def user_path(d,out):
             d.shell('input','tap',700,60)
             wait(d,'return ReaderPanel.sheet and ReaderPanel.sheet.screen=="reader-top-panel" and "ready" or "pending"')
             d.command('ReaderPanel.close();local ui=liveUI();ui:onClose();return true')
+            time.sleep(2.1)
             d.shell('input','keyevent','KEYCODE_HOME')
             wait(d,'return HomeHost.foreground() and not inBook() and "ready" or "pending"')
             events.append('Open → tap top → close → HOME '+str(i+1))
@@ -220,8 +298,8 @@ def gallery(out,reminder_crops,approved_crops):
                 approved=Image.open(reference).convert('RGB').crop((12,15,319,527))
                 note='Approved 480×800 reminder viewport adapted to the wider M8C panel; fonts use bundled Noto and native rasterization. Due sheet preserves the real book. Sleep remains unavailable unless Android grants screen-off permission.'
             else:
-                key='goal' if name=='goal-editor' else name
-                reference=approved_crops/NATIVE_REFS[key] if key in NATIVE_REFS else refs/REFERENCES.get(key,'m8c-settings.webp')
+                key=name
+                reference=approved_crops/NATIVE_REFS[key] if key in NATIVE_REFS else refs/(('m8c-server-signed-in.webp' if state=='signed-in' else 'm8c-server-signed-out.webp') if key=='account' else REFERENCES.get(key,'m8c-settings.webp'))
                 approved=Image.open(reference).convert('RGB')
                 if name.startswith('settings-') and name not in REFERENCES:note='Parent Settings reference: no dedicated approved crop exists for this section.'
                 if key in NATIVE_REFS:note='Native companion uses shared sans roles and Android system chrome. Long content scrolls. The approved reference supplies the visual family; synthetic setup/crash/account values differ.'
@@ -254,11 +332,9 @@ if __name__=='__main__':
         d=Emulator(a.serial)
         assert d.shell('wm','size').splitlines()[-1].endswith('1404x1872')
         assert d.shell('wm','density').splitlines()[-1].endswith(': 300')
-        from reminders import review as reminder_review
+        seed_diagnostic(d)
         for state in ('signed-out','signed-in'):
             capture(d,a.out,state)
-            reminder_review(d,a.out/state/'reminder-checks')
-            for name,source in [('reminder-sheet','bedtime-over-page'),('rest-eyes-sheet','eye-rest-static-page'),('missed-reminder','missed-60-minutes')]:
-                shutil.copyfile(a.out/state/'reminder-checks'/(source+'.png'),a.out/state/(name+'.png'))
+            due_captures(d,a.out/state)
         user_path(d,a.out)
     gallery(a.out,a.reminder_crops,a.approved_crops)

@@ -110,6 +110,9 @@ function RemindersUI.sheet(o)
         end
         UIManager:setDirty(self,"ui")
     end
+    function Input:getButtonById(id)
+        for i,line in ipairs(o.buttons) do if line[1].text==id then return widgets[i] end end
+    end
     function Input:onTapClose() o.dismiss();return true end
     function Input:onClose() o.dismiss();return true end
     function Input:onSwipe() o.dismiss();return true end

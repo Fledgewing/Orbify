@@ -57,6 +57,9 @@ def review(device,out):
     def no_sheet():device.command('assert(not RemindersUI.current);return true')
     def sheet(kind):wait('return RemindersUI.current and RemindersUI.current.value.kind=='+json.dumps(kind)+' and "ready" or "pending"')
     def key(name):device.shell('input','keyevent',name)
+    def tap_action(text):
+        point=device.command('local b=assert(RemindersUI.current.dialog:getButtonById('+json.dumps(text)+'));return math.floor(b.dimen.x+b.dimen.w/2)..","..math.floor(b.dimen.y+b.dimen.h/2)')
+        x,y=point.split(',');device.shell('input','tap',x,y)
     def dismissed():wait('return not RemindersUI.current and "ready" or "pending"')
     def row(index):
         device.command('local v=SettingsView.active;local n=v.screen=="reminders-list" and 4 or 8;local i='+str(index)+';v.offset=math.floor((i-1)/n)*n;v:paint();v.dialog.buttons[(i-1)%n+1][1].callback();return true')
@@ -136,7 +139,9 @@ def review(device,out):
     wait('return require("apps/reader/readerui").instance.document:getCurrentPage()~=Library._reminderPage and "ready" or "pending"')
     clear_times();clock(1);time_row(1203);tick();clock(60000);tick();sheet('time')
     for n in range(2):
-        key('KEYCODE_DPAD_DOWN');key('KEYCODE_ENTER');dismissed()
+        if n==0:tap_action('10 more minutes')
+        else:key('KEYCODE_DPAD_DOWN');key('KEYCODE_ENTER')
+        dismissed()
         clock(600000);tick();sheet('time');check('snooze-'+str(n+1))
     key('KEYCODE_BACK');dismissed();clear_times();clock(1)
     # Missed eligibility at the inclusive boundary, without waking or navigating.
@@ -154,7 +159,7 @@ def review(device,out):
     check('missed-expired-silent');clear_times();clock(1)
     interval(True);tick();read(19);no_sheet();read(1);sheet('interval')
     check('eye-rest-static-page','assert(RemindersUI.current.focus==1);assert(RemindersUI.current.value.message=="Rest your eyes. Look at something far away for 20 seconds.");return true')
-    key('KEYCODE_DPAD_RIGHT');dismissed();clock(1);tick();no_sheet()
+    tap_action('Done');dismissed();check('eye-rest-touch-done');clock(1);tick();no_sheet()
     # Five minutes outside reading resets nineteen minutes, before resumed input.
     read(19);device.command('RemindersUI.open();return true');tick();clock(300000);tick();close_settings();tick();read(1);no_sheet()
     check('five-minute-break-reset')

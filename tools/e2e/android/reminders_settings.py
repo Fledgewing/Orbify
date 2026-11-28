@@ -24,14 +24,16 @@ def companion_information(device,out,checks):
             device.shell('uiautomator','dump','/sdcard/booksync-reminders-ui.xml')
             tree=ET.fromstring(device.shell('cat','/sdcard/booksync-reminders-ui.xml'))
             found=next((n for n in tree.iter('node') if n.get('text')==text),None)
-            if found is not None:return found
+            if found is not None and found.get('bounds')!='[0,0][0,0]':return found
+            # Shared companion type keeps its floor; lower information rows scroll.
+            device.shell('input','swipe','700','1550','700','450','250')
             time.sleep(.2)
         raise AssertionError('missing native companion text: '+text)
     def tap(text):
         bounds=node(text).get('bounds')
         x1,y1,x2,y2=map(int,re.findall(r'\d+',bounds))
         device.shell('input','tap',str((x1+x2)//2),str((y1+y2)//2))
-    device.shell('am','start','-W','-n','net.fledgewing.orbitcompanion/.LauncherActivity')
+    device.shell('am','start','-W','-f','0x14000000','-n','net.fledgewing.orbitcompanion/.LauncherActivity')
     tap('Settings');tap('Reading and Home')
     node('Reminders');node('Set reminders in BookSync reader settings')
     device.shot(out/'companion-information-row.png')
