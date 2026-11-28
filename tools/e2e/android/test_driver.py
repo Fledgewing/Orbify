@@ -44,6 +44,16 @@ class EmulatorSafetyTest(unittest.TestCase):
         with patch("time.monotonic",side_effect=[0,21]):
             with self.assertRaises(TimeoutError):device.wait_projection()
 
+    def test_fixture_seeds_color_rendering_before_starting_reader(self):
+        source=Path(__file__).with_name("driver.lua").read_text()
+        self.assertLess(source.index('G_reader_settings:makeTrue("color_rendering")'), source.index('UI:scheduleIn(1,run)'))
+        self.assertIn('G_reader_settings:flush()',source)
+        # The seed is installed before the reader process starts, not via a later UI tap.
+        from run import setup
+        import inspect
+        seed=inspect.getsource(setup)
+        self.assertLess(seed.index('device.push(Path(__file__).with_name("driver.lua")'), seed.index('device.shell("am","start","-n","org.koreader.launcher/.MainActivity")'))
+
     def test_color_notice_dismissal_matches_only_the_specific_native_first_run_notice(self):
         device=object.__new__(Emulator);device.command=Mock(return_value="absent")
         self.assertEqual("absent",device.dismiss_color_notice())
@@ -51,6 +61,23 @@ class EmulatorSafetyTest(unittest.TestCase):
         self.assertIn('Documents will be rendered in color on this device.',code)
         self.assertIn('==1 then UI:close(w)',code)
         self.assertNotIn('click(',code)
+
+    def test_native_navigation_wait_only_probes_the_new_plugin_instance(self):
+        device=object.__new__(Emulator)
+        device.command=Mock(side_effect=[RuntimeError('driver.lua:21: plugin not loaded'),'true'])
+        with patch('time.sleep'):device.wait_driver()
+        self.assertEqual(2,device.command.call_count)
+        self.assertTrue(all(call.args==('return true',) for call in device.command.call_args_list))
+
+    def test_native_navigation_wait_never_retries_a_real_driver_failure(self):
+        device=object.__new__(Emulator);device.command=Mock(side_effect=RuntimeError('broken renderer'))
+        with self.assertRaisesRegex(RuntimeError,'broken renderer'):device.wait_driver()
+        self.assertEqual(1,device.command.call_count)
+
+    def test_native_navigation_wait_fails_if_the_plugin_never_reappears(self):
+        device=object.__new__(Emulator);device.command=Mock(side_effect=RuntimeError('plugin not loaded'))
+        with patch('time.monotonic',side_effect=[0,21]):
+            with self.assertRaises(TimeoutError):device.wait_driver()
 
     def test_startup_wait_polls_readiness_without_repeating_a_ui_action(self):
         device=object.__new__(Emulator)

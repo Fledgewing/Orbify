@@ -22,11 +22,16 @@ function HomeHostPlan.cardGeometry(p,rect,scale)
     local w,h=rect.w-2,rect.h-2
     local compact=h<scale(132)
     local pad=scale(compact and 8 or 14)
-    local shelf=p.widget=="booklist" and ((p.settings or {}).style or 0)==0 and h>=scale(190)
+    local owned=p.instance~="list-books"
+    local shelf=p.widget=="booklist" and ((p.settings or {}).style or 0)==0 and h>=scale(owned and 160 or 190)
     local available=h-2*pad-scale(52)
     local rowH=scale(p.widget=="booklist" and available>=scale(96) and 96 or 52)
-    local capacity=compact and 1 or shelf and ((p.w or 2)>=4 and 4 or 2)
+    local capacity=compact and 1 or shelf and ((p.w or 2)>=4 and (owned and 6 or 4) or (owned and 3 or 2))
         or math.max(0,math.floor(available/rowH))
+    if owned and not compact and not shelf then
+        if p.widget=="lists" then capacity=math.min(4,math.floor((h-scale(56))/scale(52)))
+        elseif p.widget=="booklist" then capacity=math.max(1,math.floor((h-scale(56))/scale(64))) end
+    end
     return {w=w,h=h,compact=compact,pad=pad,shelf=shelf,rowH=rowH,capacity=capacity}
 end
 local sources = {unopened="unopened",upnext="series-next",year={kind="finished-year",key="current"},pickup="pick-back-up",recent="recently-added",wtr="want-to-read",device="on-device",reading="reading",finished="finished",custom="library/all"}
@@ -127,4 +132,21 @@ function HomeHostPlan.saveFilter(document, saved, title)
     local result,err=Layout.page(document,"add",id)
     if not result then return nil,err end
     return Layout.add(result,id,p),id
+end
+
+-- Last successful position sync is distinct from catalog freshness. Never invent a stamp.
+function HomeHostPlan.syncFreshness(last,now,accountStatus)
+    if accountStatus then return accountStatus end
+    if type(last)~="table" or type(last.at)~="number" then return "Not synced yet · Sync" end
+    if last.ok~=true then return "Sync pending · Sync" end
+    local age=math.max(0,now-last.at)
+    local text=age<60 and "just now" or age<3600 and tostring(math.floor(age/60)).." min ago"
+        or age<86400 and tostring(math.floor(age/3600)).." h ago" or tostring(math.floor(age/86400)).." d ago"
+    return "✓ Synced "..text.."   Sync"
+end
+
+function HomeHostPlan.readAge(at,now)
+    if type(at)~="number" then return "Last read unknown" end
+    local days=math.floor(math.max(0,now-at)/86400)
+    return days==0 and "Read today" or days==1 and "Read yesterday" or "Read "..days.." days ago"
 end

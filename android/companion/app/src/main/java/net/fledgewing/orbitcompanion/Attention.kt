@@ -95,17 +95,6 @@ object Attention {
         return true
     }
 
-    /** Home press: the prompt once before KOReader when an unsnoozed row is new (SetupAttention.homePrompt). */
-    fun promptOnHome(a: Activity): Boolean {
-        val p = Prefs(a)
-        val e = evaluate(a, "home press")
-        if (!SetupAttention.homePrompt(e.result, p.setupHomePrompted)) return false
-        p.setupHomePrompted = e.result.needed.toSet()
-        OLog.i("setup: home press: prompting once for ${e.result.needed} before ${HomeTarget.name(a)}")
-        a.startActivity(Intent(a, AttentionActivity::class.java))
-        return true
-    }
-
     /** KOReader's setup box "Later" (SETUP_LATER): the same snooze as the prompt's Later. */
     fun laterFromKoreader(ctx: Context) {
         val e = evaluate(ctx, "koreader later", notify = false)

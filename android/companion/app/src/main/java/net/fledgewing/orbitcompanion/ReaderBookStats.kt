@@ -7,7 +7,7 @@ import java.time.temporal.ChronoUnit
 
 /** Borrow KOReader's existing statistics read-only, on the companion worker. Never flush the reader. */
 object ReaderBookStats {
-    fun read(root: File, entry: Map<*, *>?, open: (File) -> Sql = { AndroidSql(it, readOnly = true) }): Map<String, Any?> {
+    fun read(root: File, entry: Map<*, *>?, now: Long = System.currentTimeMillis()/1000, open: (File) -> Sql = { AndroidSql(it, readOnly = true) }): Map<String, Any?> {
         val missing = mapOf("available" to false)
         val md5 = (entry?.get("md5") as? String)?.takeIf { Regex("[0-9a-f]{32}").matches(it) } ?: return missing
         val stats = File(root.parentFile, "statistics.sqlite3")
@@ -23,7 +23,9 @@ object ReaderBookStats {
                         ChronoUnit.DAYS.between(LocalDate.parse(first), LocalDate.parse(finished)).takeIf { n -> n >= 0 }?.plus(1)
                     }.getOrNull() else null
                     if (first == null) missing else mapOf("available" to true, "pages_read" to it.long(0), "reading_seconds" to it.long(1),
-                        "days_start_to_finish" to days)
+                        "days_start_to_finish" to days,
+                        "started_days" to ChronoUnit.DAYS.between(LocalDate.parse(first),
+                            java.time.Instant.ofEpochSecond(now).atZone(java.time.ZoneId.systemDefault()).toLocalDate()).takeIf { n -> n>=0 })
                 }.single()
             }
         }.getOrDefault(missing)

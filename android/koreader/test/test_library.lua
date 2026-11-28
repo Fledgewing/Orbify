@@ -107,6 +107,21 @@ return function(test, eq, ok, here, Cache)
         eq(#queue,1);stop();eq(#queue,0,"retiring the last job removes its drain")
         eq(e.Library.cardCoverJobs.active,0)
     end)
+    test("card covers: local embedded misses use deferred acquisition and honor cancellation",function()
+        local queue,calls,delivered={},0,0
+        local e=setmetatable({Cache=Cache,now_s=function() return 1 end,log=function() end,reading=function() return false end,
+            UIManager={nextTick=function(_,fn) queue[#queue+1]=fn end,unschedule=function() end},
+            LibraryAdapter={owner=function() return "device-local" end,sent={},order={}},
+            require=function() return {attributes=function() return {mode="file",size=100} end} end},{__index=_G})
+        setfenv(assert(loadfile(root.."logic/budgets.lua")),e)()
+        setfenv(assert(loadfile(root.."ko/library.lua")),e)()
+        local complete
+        e.Library.acquireCover=function(key,done) eq(key,"device:book:fixture");calls=calls+1;complete=done end
+        local cancel=e.Library.prepareCardCover({key="device:book:fixture",local_path="fixture.epub"},function() delivered=delivered+1 end)
+        eq(calls,0);table.remove(queue,1)();eq(calls,1)
+        complete({local_path="thumbnail.jpg"});eq(delivered,0)
+        cancel();table.remove(queue,1)();eq(delivered,0)
+    end)
     test("interface status: file and binder JSON are bounded before decoding",function()
         local body,decoded,closed="{}",0,0
         local e=setmetatable({Budgets={MAX_SNAPSHOT=16384},PATCH_VERSION="fixture",

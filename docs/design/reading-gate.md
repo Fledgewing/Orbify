@@ -178,3 +178,24 @@ The companion evaluates bounded local values; it never shows an Activity or noti
 Ordinary `Gate.show`, notices, updates, network and restart negatives are unchanged.
 A reminder draw never drains ordinary pending work. Input dismissal is consumed;
 only a fresh explicit action can Sleep or Turn off. See [reminder rules](reminders.md).
+
+
+### Native Android foreground state
+
+Foreground eligibility reads the launcher's `android.isResumed()` scalar through
+`Jni.isResumed`, as the pinned KOReader Android device itself does at
+[`frontend/device/android/device.lua:228`](https://github.com/koreader/koreader/blob/9192014d8bd82a91dc1012473be0f238dedfdb54/frontend/device/android/device.lua#L228).
+A reused reader/Home/settings owner can retain an older Resume memo after an app
+switch; that memo must not decide whether the native activity is in front.
+Native `false` always denies foreground eligibility. Host environments without the
+Android helper retain the lifecycle memo fallback. Screen interactivity and the
+claimed reminder's lifetime/kind predicates remain separate checks. This is a
+scalar read, with no network, storage or Java reflection on paint.
+
+
+The existing user-opened Storage and end-of-book exceptions also publish a
+visibility-only reading report on entry/exit, as Home already does. The companion's
+bulk pause owner therefore agrees with the plugin while preparing their bounded
+snapshots, and resumes the reading gate on return to the page. These lifecycle
+reports create no battery measurement and grant no network, notification or sleep
+authority beyond the existing surface policy.

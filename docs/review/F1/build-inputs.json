@@ -1,0 +1,16 @@
+{
+  "matching_packaged_plugin_members": 162,
+  "fixture_only_injections": [
+    "orbit.koplugin/ko/companion.lua",
+    "orbit.koplugin/ko/library_reminders.lua",
+    "orbit.koplugin/main.lua"
+  ],
+  "plugin_zip_sha256": "bde93cdec85a0d6fa980959ce061d1054f0cd2481da3aa8ba18a225dc2a4c574",
+  "time_picker_actual_touch": [
+    "hour",
+    "minute",
+    "numeric keys",
+    "AM/PM",
+    "Done preview"
+  ]
+}

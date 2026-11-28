@@ -239,6 +239,7 @@ function EndSheet:rowWidget(block, w, h, mt)
 end
 
 function EndSheet:build()
+    if self.name=="orbit_end_of_book" then return CatalogUI.finish(self) end
     local finish=Budgets.span("end-of-book.draw",now_s,log)
     local Blitbuffer = require("ffi/blitbuffer")
     local Geom = require("ui/geometry")

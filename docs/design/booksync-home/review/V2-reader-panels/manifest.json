@@ -1,0 +1,22 @@
+{
+  "serial": "emulator-5590",
+  "resolution": "1404x1872",
+  "dpi": 300,
+  "book_fixture": {
+    "md5": "1fc310df6cada6c4e025014524d9e98c",
+    "page": 131,
+    "total": 232,
+    "started_days": 9,
+    "reading_seconds": 14700,
+    "chapter_minutes": 26,
+    "book_minutes": 202,
+    "visits": 200,
+    "series_books": 5
+  },
+  "data_source": "Actual EPUB document properties and MD5-linked KOReader statistics DB; no supplied display models",
+  "whole_word_checks": [
+    "orch whole-word: 0",
+    "orch substring: capped 128",
+    "lantern whole-word: native results"
+  ]
+}

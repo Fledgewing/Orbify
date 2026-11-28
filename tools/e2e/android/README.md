@@ -181,3 +181,78 @@ Both halves therefore validate the same injected grant expiry, including the exa
 60-minute boundary; host time spent editing cannot make a frozen test-clock grant
 appear expired. This changes only disposable staged sources. Production uses the OS
 suspend-aware clock; the fixture adds no paint IO and retains the actual gate predicates.
+
+Home V1: after the ordinary fixture setup, run `python3 tools/e2e/android/home.py
+--serial emulator-N --out <evidence>`. It requires Pillow for deterministic raster
+cover fixtures and uses a marker in the disposable Books directory to opt into
+`HomeFixture.kt`; other emulator scenarios retain the original adapter behavior.
+The fixture provides synthetic reading/recent/Want to read windows and saved lists,
+while production projections remain unchanged. It seeds 59 books with covers,
+series, three saved in-progress positions and finished history. Native captures
+wait for published views, expected cached covers and a completed repaint. It checks
+that editor/picker previews make no queries and that move/size/save use their real
+callbacks. The size action cycles to the next span that fits, preserving neighbours.
+`--skip-seed` reuses an already seeded disposable AVD.
+
+Catalog and finish presentation: `catalog_ui.py --serial emulator-N --out <evidence>`
+checks the five-column Library, paging, filter counts/selection, grouped shelves,
+Series, Storage, saved finish covers, rating and stale-poll cancellation. Configure
+1404×1872 at 300 dpi and seed the 59-book fixture's sidecar covers first. It signs
+in to the compiled fixture account and disables the disposable emulator's radios.
+Main captures use the fixture companion; the additional next-three Series specimen
+supplies one bounded saved adapter response to exercise remote-only visual states.
+It uses the same native renderer and verifies the real download-card callback.
+
+V1 Stats review: after `home.py`, run `home_stats.py --serial emulator-N --out <home-captures> --statistics-db <synthetic statistics.sqlite3>`.
+It requires 50 distinct history days, copies the DB into the disposable emulator,
+checks all 34 Stats/Battery sizes for native truncation in empty and seeded states,
+and captures both. It stops only the two apps on that explicit emulator before
+replacing its DB and removing its WAL/SHM files. `home_details.py` captures the
+compact local-series card and verifies unavailable end-of-book pace. Both tools
+use the same guarded Emulator and fake ServerAdapter as Home acceptance.
+
+
+Final build gallery: after `home.py`, `home_stats.py` and `reader_panels.py`, run
+`final_gallery.py --serial emulator-N --out <gallery> --reminder-crops <approved-reminder-images>
+--approved-crops <approved-native-family-images>`. Use 1404×1872 at 300 dpi.
+It captures every listed reader/companion surface in both real fixture account states,
+uses the reminder service's injected clocks for actual due sheets, and verifies Android
+HOME while signed out, an actual stock-launcher app-drawer icon tap, and ten native open/tap-top/close/HOME
+cycles. `user-path-logcat.txt` streams all buffers continuously during those paths, so ring-buffer
+rotation cannot drop their beginning. The capture must remain alive until completion. Original
+native PNGs remain unchanged; comparison WebPs normalize only the approval crop.
+The builder retains both Home and ReminderClock fixtures. Identical pending fake
+adapter batches coalesce so cold native sidecar scans cannot queue duplicate work
+ahead of the next visible screen. Deadlines are unchanged and scenario failures stop.
+Reminder editors retain all draft fields plus Save/Delete on one page; only saved
+lists page four rows. Due sheets preserve the one-use claim, gate and consumed-input
+contract while sharing kit type, actions and rounded sheet surfaces. Native companion
+reminder discoverability inherits `CompanionStyle` through the common row factory.
+
+Device-local publications coalesce identical queued/running batches as well as the
+fake adapter's batches. `PendingBatchesTest` checks duplicates during both phases,
+independent requests, failure and executor rejection; no failed request stays pinned.
+The native driver resolves the current Reader/FileManager's registered `orbit`
+module before consulting PluginLoader's transient registry. Its readiness wait
+probes only that instance and never replays navigation or suppresses other failures.
+Foreground gates use the native launcher activity scalar, with the pinned source
+and memo fallback documented in `docs/design/reading-gate.md`. This preserves
+hidden/sleeping denial across companion visits and reused native screen owners.
+The navigation proof closes the user-opened top panel with Android Back, then
+presses Home outside the documented two-second double-press window.
+
+The path probe observes native input restoration after the first book paint before
+sending its one top tap. It also waits for visible companion UI after the launcher
+transition; a warm launch may restore the existing companion settings task. Only
+the disposable image’s exact BookSync notification consent prompt is dismissed,
+using Don’t allow, so native captures retain the ungranted notification state.
+
+Segmented native settings rows disable baseline alignment so a wrapped Home choice
+fits inside the rounded outline alongside a one-line neighbour. The native-graphics
+PageLayoutTest reproduces the old clipped last line at the M8C logical width.
+
+The final gallery includes all nine Android reminder approvals, including the
+12-hour kit Time picker and the explicit Unknown-clock provider-error fixture.
+The picker uses immutable `twelveHour` metadata; Done previews through the
+companion validator and only the outer Save persists. Unknown-clock UI routes its
+connection action to existing companion Wi-Fi controls without claiming clock sync.

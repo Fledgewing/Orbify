@@ -14,9 +14,9 @@ from run import Emulator, PACKAGE
 
 def review(device, apk, out):
     out.mkdir(parents=True, exist_ok=True)
-    device.adb("install", "-r", apk)
-    device.shell("wm", "size", "1200x1600")
-    device.shell("wm", "density", "240")
+    device.adb("install", "-r", "-t", apk)
+    assert device.shell("wm", "size").splitlines()[-1].endswith("1404x1872"), "configure M8C resolution first"
+    assert device.shell("wm", "density").splitlines()[-1].endswith(": 300"), "configure 300 dpi first"
     device.shell("settings", "put", "global", "auto_time_zone", "0")
     device.shell("cmd", "alarm", "set-timezone", "America/Los_Angeles")
     device.shell("settings", "put", "global", "show_first_crash_dialog", "0")

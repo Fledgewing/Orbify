@@ -1,94 +1,56 @@
 -- SPDX-License-Identifier: AGPL-3.0-or-later
 -- Series and grouped lists belong to the existing Home host, not a second screen stack.
 SeriesUI = {}
-local function scale(n) return Device.screen:scaleBySize(n) end
-function SeriesUI.dots(canvas,dots,x,y,w)
-    local n=math.min(#dots,24)
-    if n==0 then return end
-    local gap=scale(5); local width=math.max(1,math.floor((w-gap*(n-1))/n))
-    for i=1,n do
-        HomeWidgets.put(canvas,HomeWidgets.ui().Progress:new{width=width,height=scale(10),percentage=SeriesPlan.dot(dots[i]),
-            radius=scale(5),margin_h=0,margin_v=0},x+(i-1)*(width+gap),y)
-    end
-end
-function SeriesUI.install(host,canvas,metrics)
-    local old=host[1]
-    host[1]=HomeWidgets.ui().Frame:new{padding=0,margin=0,bordersize=0,background=HomeWidgets.ui().BB.COLOR_WHITE,canvas}
-    host.metrics=metrics
-    host.changed_rects={{x=0,y=0,w=host.dimen.w,h=host.dimen.h}}
-    if old then old:free() end
-end
-local function header(host,c,title)
-    local w=host.dimen.w; local gap=scale(18)
-    HomeWidgets.button(c,"‹ Back",gap,scale(12),scale(100),scale(50),function() host:onClose() end)
-    HomeWidgets.text(c,title,scale(130),scale(25),w-scale(270),24,false,true)
-    HomeWidgets.button(c,"Search",w-scale(118),scale(12),scale(100),scale(50),function() host:search() end)
-end
-local function message(host,c,result,y)
-    local state,label=SeriesPlan.state(result)
-    if result.membership_incomplete then label="Saved membership incomplete" end
-    host.catalog_state=state
-    if label then HomeWidgets.text(c,label,scale(18),y,host.dimen.w-scale(36),18) end
-    if state=="error" or state=="offline-without-data" then
-        HomeWidgets.button(c,"Retry",scale(18),y+scale(42),scale(120),scale(50),function()
-            Library.retry(); host:rebuild(); UIManager:setDirty(host,"ui")
-        end)
-    end
-    return state=="ready" or state=="offline-with-data"
-end
-function SeriesUI.book(host,c,b,x,y,w,h)
-    -- One target covers number, title, author and status; secondary text never adds a dead action.
-    HomeWidgets.button(c,"",x,y,w,h,function() host:dispatch("book",b) end)
-    HomeWidgets.text(c,b.number or "",x,y+scale(14),scale(30),16,false,true)
-    HomeWidgets.cover(c,b,x+scale(34),y+scale(8),scale(48),scale(72))
-    HomeWidgets.text(c,b.title or "Untitled",x+scale(96),y+scale(8),w-scale(104),20,false,true)
-    HomeWidgets.text(c,b.authors and b.authors[1] or "",x+scale(96),y+scale(35),w-scale(104),14)
-    HomeWidgets.text(c,b.status_text or "",x+scale(96),y+scale(60),w-scale(104),14)
-    if b.dot=="reading" and type(b.progress)=="number" then
-        HomeWidgets.put(c,HomeWidgets.ui().Progress:new{width=scale(70),height=scale(4),percentage=b.progress/100,
-            radius=0,margin_h=0,margin_v=0},x+scale(96),y+scale(84))
-    end
-end
 function SeriesUI.paint(host)
+    local K=CatalogUI.kit();local p=K.px
     local w,h=host.dimen.w,host.dimen.h
-    local g=SeriesPlan.geometry(w,h,scale)
+    local top,bottom,row=p(365),p(68),p(92)
+    local count=math.max(1,math.min(8,math.floor((h-top-bottom)/row)))
     local paint=Library.paint("series")
-    host.caps=paint:read("capabilities",{limit=1})
+    host.caps=paint:capabilities()
     local result
     if host.caps.series and host.caps.series.read==false then result={error="unsupported"}
-    else result=paint:series(host.series_key,host.series_offset,g.limit) end
-    host.series_result,host.series_limit=result,g.limit-4
-    local c=HomeWidgets.canvas(w,h)
-    header(host,c,"Series")
-    if message(host,c,result,scale(74)) then
-        HomeWidgets.text(c,result.title or "Series",g.gap,scale(112),w-2*g.gap,28,false,true)
-        HomeWidgets.text(c,result.subtitle or "",g.gap,scale(154),w-2*g.gap,16)
-        SeriesUI.dots(c,result.dots or {},g.gap,scale(190),w-2*g.gap)
-        if result.dot_caption then HomeWidgets.text(c,result.dot_caption,g.gap,scale(204),w-2*g.gap,12) end
-        local y=scale(228)
-        local nextBooks=result.next_books or {}
-        if #nextBooks>0 then
-            HomeWidgets.text(c,"Download the next "..#nextBooks,g.gap,y,w-2*g.gap,18,false,true)
-            -- No fabricated size/free-space figure or unavailable transport action.
-            HomeWidgets.text(c,"Keeps the series ready offline",g.gap,y+scale(28),w-2*g.gap,14)
-            for i,b in ipairs(nextBooks) do
-                HomeWidgets.text(c,tostring(b.number or "").."  "..(b.title or "Untitled"),g.gap,y+scale(54+(i-1)*27),w-2*g.gap,15)
-            end
-            local enabled=host.caps.series and host.caps.series.downloadNext==true and not result.membership_incomplete
-            HomeWidgets.button(c,result.membership_incomplete and "Saved membership incomplete" or enabled and "Download next…" or "Downloads unavailable for this source",
-                g.gap,scale(366),w-2*g.gap,scale(50),function() SeriesUI.download(host) end,enabled)
-        else
-            HomeWidgets.text(c,result.earlier_pending and "Earlier unread books available." or result.remaining_saved and "Every remaining book is on this device." or
-                result.local_known and "No remaining books." or "Device state not saved",g.gap,y,w-2*g.gap,16)
+    else result=paint:series(host.series_key,host.series_offset,count+4) end
+    host.series_result,host.series_limit=result,count
+    local c=K.canvas(w,h);local edge=p(24)
+    K.header(c,{w=w,title="Series",backText="‹ Back",back=function() host:onClose() end,search=function() host:search() end})
+    local state,label=SeriesPlan.state(result);host.catalog_state=state
+    if state=="ready" or state=="offline-with-data" then
+        if label then K.label(c,label,p(110),p(42),w-p(240),"caption",{muted=true}) end
+        K.label(c,result.title or "Series",edge,p(78),w-2*edge,28,{serif=true,bold=true})
+        K.label(c,result.subtitle or "",edge,p(120),w-2*edge,"small",{muted=true})
+        local dots=result.dots or {};local n=math.min(#dots,24)
+        for i=1,n do
+            local width=math.floor((w-2*edge-p(6)*(n-1))/n)
+            K.put(c,K.frame(K.progress{w=width,h=p(8),value=SeriesPlan.dot(dots[i])},{w=width,h=p(8),border=p(1),radius=p(4)}),edge+(i-1)*(width+p(6)),p(151))
         end
-        if #nextBooks==0 and host.caps.series and host.caps.series.downloadNext==true then
-            HomeWidgets.button(c,result.membership_incomplete and "Saved membership incomplete" or "Series downloads…",g.gap,scale(366),w-2*g.gap,scale(50),function() SeriesUI.download(host) end,not result.membership_incomplete)
+        if result.dot_caption then K.label(c,result.dot_caption,edge,p(160),w-2*edge,"caption",{muted=true}) end
+        local nextBooks=result.next_books or {};local enabled=host.caps.series and host.caps.series.downloadNext==true and not result.membership_incomplete
+        local cardHeight=#nextBooks>0 and 178 or 76
+        top=p(177+cardHeight+10)
+        host.series_card_height=p(cardHeight)
+        local card={content=K.canvas(w-2*edge,p(cardHeight))}
+        K.label(card.content,#nextBooks>0 and "Download the next "..#nextBooks or "Series on this device",p(17),p(20),p(360),"body",{bold=true})
+        K.label(card.content,result.membership_incomplete and "Saved membership incomplete" or #nextBooks>0 and "Keeps the series ready offline" or result.earlier_pending and "Earlier unread books available" or result.remaining_saved and "Every remaining book is on this device" or result.local_known and "No remaining books" or "Device state not saved",p(17),p(45),w-2*edge-p(34),"caption",{muted=true})
+        K.put(card.content,K.button{text=#nextBooks>0 and "Download next "..#nextBooks or "Series downloads…",w=p(204),icon=#nextBooks>0 and "arrowD" or nil,enabled=enabled,
+            callback=function() SeriesUI.download(host) end},w-2*edge-p(221),p(16))
+        for i,b in ipairs(nextBooks) do
+            K.action(card.content,tostring(b.number or i),nil,p(17),p(80+(i-1)*30),p(24),p(24),nil,true,true)
+            K.label(card.content,b.title or "Untitled",p(51),p(80+(i-1)*30),w-2*edge-p(85),"small",{bold=true})
         end
-        for i,b in ipairs(result.items or {}) do SeriesUI.book(host,c,b,g.gap,g.top+(i-1)*g.row,w-2*g.gap,g.row) end
+        K.put(c,K.frame(card.content,{w=w-2*edge,h=p(cardHeight),border=p(2),radius=p(16)}),edge,p(177))
+        for i,b in ipairs(result.items or {}) do
+            K.bookRow(c,b,edge,top+(i-1)*row,w-2*edge,row,function() host:dispatch("book",b) end,function() host:dispatch("more",b) end)
+        end
+    else
+        K.label(c,label or "No books",edge,p(90),w-2*edge,"body")
+        if result.error or state=="offline-without-data" then K.put(c,K.button{text="Retry",w=p(130),callback=function() Library.retry();host:rebuild();UIManager:setDirty(host,"ui") end},edge,p(140)) end
     end
-    if (result.offset or 0)>0 then HomeWidgets.button(c,"‹",g.gap,h-g.bottom,scale(80),scale(50),function() SeriesUI.page(host,-1) end) end
-    if result.next then HomeWidgets.button(c,"›",w-g.gap-scale(80),h-g.bottom,scale(80),scale(50),function() SeriesUI.page(host,1) end) end
-    SeriesUI.install(host,c,paint:flush())
+    if result.next or (result.offset or 0)>0 then
+        K.pager(c,{w=w,h=h,offset=host.series_offset or 0,limit=count,total=result.total,forwardEnabled=result.next~=nil,
+            previous=function() SeriesUI.page(host,-1) end,next=function() SeriesUI.page(host,1) end})
+    end
+    CatalogUI.install(host,K,c,paint:flush());CatalogUI.refresh(host,result.pending)
 end
 function SeriesUI.page(host,delta)
     local result=host.series_result or {}
@@ -97,48 +59,48 @@ function SeriesUI.page(host,delta)
     host:rebuild(); UIManager:setDirty(host,"ui"); return true
 end
 function SeriesUI.groups(host)
+    local K=CatalogUI.kit();local p=K.px;local w,h=host.dimen.w,host.dimen.h
     local paint=Library.paint(host.filter.model.source=="search" and "search" or "library")
-    host.caps=paint:read("capabilities",{limit=1})
+    host.caps=paint:capabilities()
     local settings=host.list_layout.pages[1].placements[1].settings
-    local w,h=host.dimen.w,host.dimen.h
-    local g=SeriesPlan.geometry(w,h,scale)
-    local result=paint:groups(settings.source,settings.query,settings.offset,math.min(24,g.groups*(g.covers+1)),settings.exclude_current,g.covers,g.groups)
+    local count=math.max(1,math.min(4,math.floor((h-p(220))/p(154))))
+    local covers=math.max(1,math.min(9,math.floor((w-p(48))/p(72))))
+    local result=paint:groups(settings.source,settings.query,settings.offset,24,settings.exclude_current,covers,count)
     host.list_result,host.list_limit=result,#(result.items or {})
-    local c=HomeWidgets.canvas(w,h)
-    header(host,c,host.list_title)
-    local f=host.filter:header(result.total)
-    HomeWidgets.button(c,f.active and "Filter ●" or "Filter",g.gap,scale(74),scale(130),scale(50),f.callback)
-    local x=g.gap+scale(140)
+    local c=K.canvas(w,h);local edge=p(24);local f=host.filter:header(result.total)
+    K.header(c,{w=w,title=host.list_title,subtitle=f.subtitle,back=function() host:onClose() end,search=function() host:search() end,filter=f.callback,filterActive=f.active})
+    local x=edge
     for _,chip in ipairs(f.chips) do
-        if x+scale(140)>w-g.gap then break end
-        HomeWidgets.button(c,chip.label.." ×",x,scale(74),scale(136),scale(50),chip.callback); x=x+scale(140)
+        local width=K.text{text=chip.label,w=w-2*edge,size="small",bold=true}:getSize().w+p(52)
+        if x+width>w-edge then break end
+        K.put(c,K.button{text=chip.label,trailingIcon="x",w=width,size="small",variant="outline",callback=chip.callback},x,p(74));x=x+width+p(10)
     end
-    if message(host,c,result,scale(132)) then
-        if host.catalog_state=="ready" and not result.membership_incomplete then HomeWidgets.text(c,result.context and result.context.coverage or tostring(result.total or 0).." books",g.gap,scale(132),w-2*g.gap,16) end
-        for i,row in ipairs(result.items or {}) do
-            local y=scale(170)+(i-1)*scale(168)
-            local clickable=row.series_key or row.partial
-            local title=(row.title or "").." · "..(row.count_text or "")..(clickable and " ›" or "")
-            local go=function()
-                if row.series_key then host:showSeries(row.series_key)
-                else host:showList(row.title,settings.source,SeriesPlan.groupQuery(settings.query,row),settings.exclude_current) end
-            end
-            if clickable then HomeWidgets.button(c,title,g.gap,y,w-2*g.gap,scale(50),go)
-            else HomeWidgets.text(c,title,g.gap,y+scale(14),w-2*g.gap,18,false,true) end
-            SeriesUI.dots(c,row.dots or {},w-g.gap-scale(125),y+scale(51),scale(110))
-            if row.dot_caption then HomeWidgets.text(c,row.dot_caption,g.gap,y+scale(51),w-2*g.gap-scale(140),11) end
-            local books=row.books or {}; local cw=scale(72)
-            for j,b in ipairs(books) do
-                local bx=g.gap+(j-1)*cw
-                HomeWidgets.button(c,"BOOK",bx,y+scale(66),scale(62),scale(93),function() host:dispatch("book",b) end)
-                HomeWidgets.text(c,b.title or "Untitled",bx,y+scale(125),cw-scale(14),11,false,true)
-                HomeWidgets.text(c,b.status_text or "",bx,y+scale(143),cw-scale(14),10)
-            end
+    local state,label=SeriesPlan.state(result);host.catalog_state=state
+    if label then K.label(c,label,edge,p(131),w-2*edge,"caption") end
+    for i,row in ipairs(result.items or {}) do
+        local y=p(150)+(i-1)*p(154)
+        local go=function()
+            if row.series_key then host:showSeries(row.series_key)
+            else host:showList(row.title,settings.source,SeriesPlan.groupQuery(settings.query,row),settings.exclude_current) end
         end
+        local heading=K.canvas(w-2*edge,p(38))
+        K.action(heading,"Group",row.field=="author" and "person" or "stack",0,0,p(18),p(32))
+        K.label(heading,row.title or "",p(28),p(5),w-p(310),"body",{bold=true})
+        local detail=K.text{text=(row.count_text or "")..((row.series_key or row.partial) and "  ›" or ""),w=p(144),size="caption",bold=true}
+        K.put(heading,detail,w-2*edge-detail:getSize().w,p(9))
+        K.put(c,K.hit(heading,{text=row.title,w=w-2*edge,h=p(38),callback=(row.series_key or row.partial) and go or nil}),edge,y)
+        for j,b in ipairs(row.books or {}) do
+            local bx=edge+(j-1)*p(72)
+            K.put(c,K.hit(K.jacket{file=b.cover_path,title=b.title,author=b.authors and b.authors[1],w=p(63),h=p(94)},
+                {text=b.title,w=p(63),h=p(94),callback=function() host:dispatch("book",b) end}),bx,y+p(39))
+        end
+        local dots=row.dots or {};local n=math.min(5,#dots)
+        for j=1,n do K.put(c,K.frame(K.progress{w=p(18),h=p(7),value=SeriesPlan.dot(dots[j])},{w=p(18),h=p(7),border=p(1),radius=p(3)}),w-p(216)+(j-1)*p(22),y+p(15)) end
+        K.separator(c,edge,y+p(143),w-2*edge)
     end
-    if settings.offset>0 then HomeWidgets.button(c,"‹",g.gap,h-g.bottom,scale(80),scale(50),function() host:listPage(-1) end) end
-    if result.next then HomeWidgets.button(c,"›",w-g.gap-scale(80),h-g.bottom,scale(80),scale(50),function() host:listPage(1) end) end
-    SeriesUI.install(host,c,paint:flush())
+    K.pager(c,{w=w,h=h,offset=settings.offset or 0,limit=count,page=1+#(host.group_offsets or {}),forwardEnabled=result.next~=nil,
+        previous=function() host:listPage(-1) end,next=function() host:listPage(1) end})
+    CatalogUI.install(host,K,c,paint:flush());CatalogUI.refresh(host,result.pending)
 end
 -- Group pages consume variable numbers of preview rows; retain actual cursors for Back.
 function SeriesUI.groupPage(host,delta)

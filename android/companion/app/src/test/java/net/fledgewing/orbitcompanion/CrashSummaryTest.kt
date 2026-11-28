@@ -13,6 +13,24 @@ class CrashSummaryTest {
     private fun crash(message: String = "private") = IllegalStateException(message).apply {
         stackTrace = arrayOf(StackTraceElement("net.fledgewing.orbitcompanion.Worker", "run", "/private/book.epub", 42))
     }
+    @Test fun readerLuaReasonIsBoundedAndIncludedInCrashSummary() {
+        val f = file()
+        assertEquals("", LibraryDiagnostics.readerCrash(f))
+        val trace = "KOReader Lua main loop\nfixture error\nstack traceback:\nko/home_host.lua:42"
+        f.writeText(trace)
+        assertEquals(trace, LibraryDiagnostics.readerCrash(f))
+        val projected = LibraryDiagnostics.withReaderCrash(LibraryDiagnostics.project(CrashSummary(file()).snapshot()), trace)
+        assertTrue(projected.text.contains("fixture error")); assertTrue(projected.canClear)
+        assertTrue(projected.bytes <= CrashSummary.MAX_BYTES)
+        val store = CrashSummary(file())
+        store.record(crash(), "0.12.1")
+        assertTrue(LibraryDiagnostics.clearRecords(store, f)); assertFalse(f.exists())
+        assertTrue(store.snapshot().entries.isEmpty())
+        f.writeBytes(ByteArray(4097))
+        assertEquals("KOReader crash reason unavailable", LibraryDiagnostics.readerCrash(f))
+        f.writeText("not a crash record")
+        assertEquals("KOReader crash reason unavailable", LibraryDiagnostics.readerCrash(f))
+    }
     @Test fun duplicateSurvivesRestartAndVersionSeparates() {
         val f = file(); val first = CrashSummary(f) { 1000 }
         first.record(crash(), "0.12.0-preview.1")

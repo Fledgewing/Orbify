@@ -225,7 +225,9 @@ class SettingsPagesTest {
     fun launcherButtonOpensSettings() {
         val a = open<LauncherActivity>()
         val b = all(a.window.decorView).filterIsInstance<TextView>().first { it.text.toString().contains("Settings") }
-        b.performClick()
+        val tile = b.parent as View
+        assertTrue("the whole Settings tile is a tap target", tile.hasOnClickListeners())
+        tile.performClick()
         assertEquals(SettingsActivity::class.java.name, shadowOf(a).nextStartedActivity.component?.className)
         assertNotNull("status moved to the launcher page", tagged(a, "status:service"))
     }

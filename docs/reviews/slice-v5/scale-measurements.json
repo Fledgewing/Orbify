@@ -1,0 +1,119 @@
+[
+  {
+    "sample": "Goal year",
+    "kind": "cap height",
+    "approved_px": 43,
+    "approved_width": 824,
+    "native_px": 71,
+    "native_width": 1404,
+    "error_percent": -3.09
+  },
+  {
+    "sample": "Goal label",
+    "kind": "cap height",
+    "approved_px": 30,
+    "approved_width": 824,
+    "native_px": 51,
+    "native_width": 1404,
+    "error_percent": -0.23
+  },
+  {
+    "sample": "Goal numeric field",
+    "kind": "cap height",
+    "approved_px": 29,
+    "approved_width": 824,
+    "native_px": 48,
+    "native_width": 1404,
+    "error_percent": -2.86
+  },
+  {
+    "sample": "Goal Off",
+    "kind": "cap height",
+    "approved_px": 30,
+    "approved_width": 824,
+    "native_px": 52,
+    "native_width": 1404,
+    "error_percent": 1.73
+  },
+  {
+    "sample": "Goal Save",
+    "kind": "cap height",
+    "approved_px": 29,
+    "approved_width": 824,
+    "native_px": 49,
+    "native_width": 1404,
+    "error_percent": -0.84
+  },
+  {
+    "sample": "Launcher hero capital K",
+    "kind": "cap height",
+    "approved_px": 25,
+    "approved_width": 702,
+    "native_px": 50,
+    "native_width": 1404,
+    "error_percent": 0.0
+  },
+  {
+    "sample": "Launcher tile capital O",
+    "kind": "cap height",
+    "approved_px": 16,
+    "approved_width": 702,
+    "native_px": 32,
+    "native_width": 1404,
+    "error_percent": 0.0
+  },
+  {
+    "sample": "Status row capital N",
+    "kind": "cap height",
+    "approved_px": 19,
+    "approved_width": 702,
+    "native_px": 37,
+    "native_width": 1404,
+    "error_percent": -2.63
+  },
+  {
+    "sample": "Crash summary Worker.run",
+    "kind": "cap height",
+    "approved_px": 29,
+    "approved_width": 824,
+    "native_px": 50,
+    "native_width": 1404,
+    "error_percent": 1.19
+  },
+  {
+    "sample": "Numeric field width",
+    "kind": "control size",
+    "approved_px": 132,
+    "approved_width": 824,
+    "native_px": 225,
+    "native_width": 1404,
+    "error_percent": 0.04
+  },
+  {
+    "sample": "Numeric field height",
+    "kind": "control size",
+    "approved_px": 102,
+    "approved_width": 824,
+    "native_px": 180,
+    "native_width": 1404,
+    "error_percent": 3.57
+  },
+  {
+    "sample": "Launcher hero height",
+    "kind": "control size",
+    "approved_px": 253,
+    "approved_width": 702,
+    "native_px": 506,
+    "native_width": 1404,
+    "error_percent": 0.0
+  },
+  {
+    "sample": "Launcher tile height",
+    "kind": "control size",
+    "approved_px": 150,
+    "approved_width": 702,
+    "native_px": 300,
+    "native_width": 1404,
+    "error_percent": 0.0
+  }
+]

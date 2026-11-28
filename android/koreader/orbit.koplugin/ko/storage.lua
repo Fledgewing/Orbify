@@ -15,17 +15,33 @@ function StorageUI.bar(canvas,parts,x,y,w,h)
             if not part then break end
             local width=math.min(w-offset,math.max(0,math.floor(w*(part.fraction or 0))))
             if part.pattern=="solid" then bb:paintRect(px+offset,py,width,h,u.BB.COLOR_BLACK)
-            elseif part.pattern=="hatch" or part.pattern=="dots" then
-                for dx=0,width-1,4 do
-                    for dy=0,h-1,4 do
-                        local shift=part.pattern=="hatch" and dy%8/2 or 0
-                        if dx+shift<width then bb:paintRect(px+offset+dx+shift,py+dy,1,math.min(2,h-dy),u.BB.COLOR_BLACK) end
+            elseif part.pattern=="hatch" then
+                for dy=0,h-1 do
+                    for dx=-8,width-1,8 do
+                        local left=math.max(0,dx+dy%8);local right=math.min(width,dx+dy%8+3)
+                        if right>left then bb:paintRect(px+offset+left,py+dy,right-left,1,u.BB.COLOR_BLACK) end
                     end
+                end
+            elseif part.pattern=="dots" then
+                for dx=0,width-1,4 do
+                    for dy=0,h-1,4 do bb:paintRect(px+offset+dx,py+dy,1,math.min(2,h-dy),u.BB.COLOR_BLACK) end
                 end
             end
             offset=offset+width
         end
-        bb:paintRect(px,py,w,1,u.BB.COLOR_BLACK); bb:paintRect(px,py+h-1,w,1,u.BB.COLOR_BLACK)
+        local radius=math.min(math.floor(h/2),Device.screen:scaleBySize(4))
+        for dy=0,radius-1 do
+            local distance=radius-dy-.5
+            local inset=math.max(0,math.ceil(radius-math.sqrt(math.max(0,radius*radius-distance*distance))-.5))
+            if inset>0 then
+                bb:paintRect(px,py+dy,inset,1,u.BB.COLOR_WHITE)
+                bb:paintRect(px+w-inset,py+dy,inset,1,u.BB.COLOR_WHITE)
+                bb:paintRect(px,py+h-dy-1,inset,1,u.BB.COLOR_WHITE)
+                bb:paintRect(px+w-inset,py+h-dy-1,inset,1,u.BB.COLOR_WHITE)
+            end
+        end
+        bb:paintBorder(px,py,w,h,math.max(1,Device.screen:scaleBySize(1)),u.BB.COLOR_BLACK,radius)
+
     end
     HomeWidgets.put(canvas,bar,x,y)
 end
@@ -91,6 +107,12 @@ function StorageUI.create(mode,onCollection,onReturn,caps)
         self.dimen=Geom:new{w=Device.screen:getWidth(),h=Device.screen:getHeight()}
         self.key_events={Close={{"Back"}},Next={{"Down"}},Previous={{"Up"}},Select={{"Press"}}}
         self:rebuild()
+        self.onPublication=function(event)
+            if self.data and self.data.pending and self:visible() and (event.kind=="library" or event.kind=="library_source") then
+                self:rebuild();UIManager:setDirty(self,"ui")
+            end
+        end
+        self.unsubscribe=Library.observe(self.onPublication)
     end
     function Page:visible() return not self.closed and UIManager:getTopmostVisibleWidget()==self end
     function Page:rebuild()
@@ -107,6 +129,7 @@ function StorageUI.create(mode,onCollection,onReturn,caps)
         end
     end
     function Page:draw()
+        if self.mode=="storage" then return CatalogUI.storage(self) end
         local finish=Budgets.span("storage."..self.mode..".render",now_s,log)
         local s=function(n) return Device.screen:scaleBySize(n) end
         local w,h=self.dimen.w,self.dimen.h; local c=HomeWidgets.canvas(w,h)
@@ -237,9 +260,10 @@ function StorageUI.create(mode,onCollection,onReturn,caps)
     function Page:onSelect() self.controls[self.focus].callback(); return true end
     function Page:onCloseWidget()
         self.closed=true
+        if self.unsubscribe then self.unsubscribe();self.unsubscribe=nil end
         if self.pending_cancel then self.pending_cancel();self.pending_cancel=nil end
         if self.refresh then UIManager:unschedule(self.refresh); self.refresh=nil end
-        if StorageUI.active==self then StorageUI.active=nil end
+        if StorageUI.active==self then StorageUI.active=nil;Library.readingVisibilityChanged("storage-close") end
     end
     function Page:onClose() if self.closed then return true end; self:onCloseWidget(); UIManager:close(self); Library.changed({kind="storage"}); if onReturn then onReturn() end; return true end
     return Page:new{}
@@ -253,6 +277,7 @@ function StorageUI.show(mode,onCollection,onReturn,caps)
     if not ok then error(page) end
     StorageUI.active=page
     UIManager:show(page) -- gate: user action (Storage, Collections or Download folder)
+    Library.readingVisibilityChanged("storage")
     return page
 end
 function StorageUI.cacheLimit()

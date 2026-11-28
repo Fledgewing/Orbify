@@ -13,7 +13,8 @@ object ServerAdapters {
     private var context: Context? = null
     private val root get() = Worker.root()
     private val deviceSnapshot=ThreadLocal<DeviceLibrary>()
-    private fun newBooks()=DeviceLibrary(listOf(File(android.os.Environment.getExternalStorageDirectory(), "Books")))
+    private val pendingProjection=java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
+    private fun newBooks()=DeviceLibrary(listOf(File(android.os.Environment.getExternalStorageDirectory(), "Books")), root)
     private val books get() = deviceSnapshot.get() ?: newBooks()
     private fun <T> readBatch(block:()->T):T {
         val previous=deviceSnapshot.get();deviceSnapshot.set(newBooks())
@@ -51,6 +52,7 @@ object ServerAdapters {
         }
         override fun signOut() { prefs.edit().putBoolean("signedIn", false).commit() }
         override fun project(owner: String, request: Map<*, *>): Map<String, Any?> {
+            HomeFixture.project(books,request)?.let { return it }
             if(request["op"]=="catalog.state") return mapOf("running" to false,"state" to "complete","phase" to "finished","why" to "finished","freshness" to mapOf("saved" to true))
             if(RetainedFixture.handles(request)) return RetainedFixture.project(root,owner,request)
             if(request["op"]=="sources" && (request["category"] ?: "builtin")=="builtin") {
@@ -167,8 +169,13 @@ object ServerAdapters {
             }
             val raw=i.getStringExtra("library_batch") ?: return
             val owner=i.getStringExtra("owner") ?: return
+            // A cold native sidecar scan can outlast several paint polls. One
+            // publication satisfies all identical pending requests; never queue
+            // duplicate scans ahead of the next visible screen's projection.
+            val key=owner+raw
+            if(!pendingProjection.add(key)) return
             BulkWork.executor.execute {
-                runCatching {
+                try { runCatching {
                     val requests=LuaValue.parse(LuaValue.str(raw).toByteArray(Charsets.ISO_8859_1)) as List<*>
                     projectionStore(root).use { store ->
                         store.db().exec("INSERT OR REPLACE INTO meta(k,v) VALUES ('owner',?)", OWNER)
@@ -176,6 +183,7 @@ object ServerAdapters {
                     }
                     event()
                 }.onFailure { OLog.w("emulator fixture projection failed",it) }
+                } finally { pendingProjection.remove(key) }
             }
         }
     }

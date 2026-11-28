@@ -85,3 +85,26 @@ of existing setup diagnostics; no paint scans, network or subprocesses are added
 The disposable emulator acceptance flow is `tools/e2e/android/crash_summary.py`.
 Its crash trigger is added only to the external fixture build, never to shipping
 sources or the shipping manifest. Physical reader acceptance remains separate.
+
+## Slice X1: Lua fatal handoff
+
+Maintainer request 2026-11-28 authorizes a fallback when the reported KOReader crash
+cannot be reproduced: log the Lua traceback to KOReader and persist its cause for
+the companion’s crash summary. This extends the original Companion-only scope.
+
+The plugin wraps `UIManager:handleInput` (pinned KOReader
+`9192014d8bd82a91dc1012473be0f238dedfdb54`, `frontend/ui/uimanager.lua:1459`)
+with `xpcall`; the error handler retains the traceback before unwinding, logs it
+with `logger.err` (Android’s KOReader tag), and atomically saves at most 4096 bytes
+to `settings/orbit-cache/koreader-crash.txt`. The original error is rethrown.
+Timed BookSync wrappers retain their inner traceback too. Saving failure cannot
+replace the original error, and normal input/paint turns do no diagnostic IO.
+This captures Lua failures escaping the input loop, not native signals, Android
+kills, or a normal exit with code zero.
+
+Setup → Details reads exactly that file off the UI thread, bounded to 4097 bytes
+to reject oversized records. It includes the cause under its explicit KOReader
+label in the existing local summary, within the 8 KiB presentation budget. Clear
+removes this file too. This maintainer-requested local traceback can include Lua
+error text and source paths, unlike the allowlisted Companion fingerprints; it
+is never uploaded automatically. No logs or native dumps are scanned.

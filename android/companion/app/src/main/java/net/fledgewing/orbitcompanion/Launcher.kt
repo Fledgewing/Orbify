@@ -72,8 +72,11 @@ class HomeActivity : Activity() {
     private fun decide(press: Boolean) {
         // Just after an update started from one of our pages: that page, not KOReader (UpdateReturn).
         UpdateReturn.forHome()?.let { if (UpdateReturn.open(this, it, "home after the update", reuse = true)) return }
-        // A new setup step: the prompt once, then (when it closes) on to KOReader as usual.
-        if (press && Attention.promptOnHome(this)) return
+        // Home is navigation, including for offline readers without a server account.
+        // Setup/sign-in remain available from Home and the explicit companion pages.
+        if (press) Attention.evaluate(this,"home press",notify=false)
+        // A transient task closing must not cover a companion page the user opened.
+        if (!press && EinkActivity.pageResumed()) return
         val prefs = Prefs(this)
         val choice = prefs.homeApp
         val other = HomeApp.isApp(choice)
@@ -97,8 +100,8 @@ class HomeActivity : Activity() {
         // A patch waiting to load and no book open: this Home press restarts KOReader instead.
         if (action == HomeAction.START_KOREADER && !HomeApp.isApp(choice) && PatchInstaller.follow(this, "home press")) return
         if (action == HomeAction.START_KOREADER) {
-            // "Home button": library home -> "home" on a press, a plain start after KOReader went
-            // away. Back to my book -> "home_smart" for both; the patch decides (HomePlan).
+            // The chosen Home action is explicit on both presses and recovery: library home
+            // sends "home"; Back to my book sends "home_smart" (HomePlan decides).
             // Another "Home opens" app: just bring it to the front (HomeApp.launch).
             val l = HomeApp.launch(choice, press, prefs.homeButton, EinkActivity.companionPageInFront())
             val reason = if (press) "home press" else "home uncovered"
@@ -136,7 +139,8 @@ class HomeActivity : Activity() {
 }
 
 /** Mockup 1: the escape-hatch launcher page. */
-class LauncherActivity : EinkActivity() {
+open class LauncherActivity : EinkActivity() {
+    protected open val rendersOnResume = true
     private var why: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -155,10 +159,10 @@ class LauncherActivity : EinkActivity() {
         Updater.onPageResumed(this)
         // Unfrozen since: drop the stale message.
         if (why == Vendor.disabledMessage(this, "KOReader") && Koreader.state(this) != AppState.FROZEN) why = null
-        render()
+        if (rendersOnResume) render()
     }
 
-    private fun render() {
+    protected open fun render() {
         val root = page()
         root.addView(Ui.header(this, "BookSync"))
         val choice = Prefs(this).homeApp
@@ -176,7 +180,7 @@ class LauncherActivity : EinkActivity() {
             root.addView(Ui.gap(this, 8))
         }
         val koFirst = !HomeApp.isApp(choice)
-        val open = Ui.button(this, "Open KOReader\n", solid = koFirst, heightDp = if (koFirst) 96 else 80, sp = if (koFirst) 26f else 22f) {
+        val open = Ui.button(this, "Open KOReader\n", solid = koFirst, heightDp = if (koFirst) CompanionStyle.HERO_HEIGHT else 120, sp = if (koFirst) CompanionStyle.HERO_TYPE else CompanionStyle.TILE_TYPE) {
             if (Koreader.goHome(this, "launcher button")) {
                 HomeActivity.decider.startedByHand(SystemClock.elapsedRealtime())
             } else {
@@ -188,7 +192,7 @@ class LauncherActivity : EinkActivity() {
             append("Open KOReader\n")
             val s = length
             append(if (Prefs(this@LauncherActivity).homeButton == HomeButton.SMART) "back to your book" else "opens on library home")
-            setSpan(android.text.style.RelativeSizeSpan(0.65f), s, length, 0)
+            setSpan(android.text.style.RelativeSizeSpan(CompanionStyle.subtitleScale(if (koFirst) CompanionStyle.HERO_TYPE else CompanionStyle.TILE_TYPE)), s, length, 0)
             setSpan(android.text.style.StyleSpan(android.graphics.Typeface.NORMAL), s, length, 0)
         }
         root.addView(open)
@@ -206,8 +210,8 @@ class LauncherActivity : EinkActivity() {
         root.addView(
             Ui.weightRow(
                 this,
-                Ui.button(this, "⋯  Other apps", heightDp = 72) { startActivity(Intent(this, AppsActivity::class.java)) },
-                Ui.button(this, "⚙  Settings", heightDp = 72) { startActivity(Intent(this, SettingsActivity::class.java)) },
+                Ui.launcherTile(this, "⋯", "Other apps") { startActivity(Intent(this, AppsActivity::class.java)) },
+                Ui.launcherTile(this, "⚙", "Settings") { startActivity(Intent(this, SettingsActivity::class.java)) },
             ),
         )
         root.addView(Ui.gap(this, 12))
@@ -382,11 +386,10 @@ class AppsActivity : EinkActivity() {
         val list = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         root.addView(list, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
 
-        val pager = TextView(this)
+        val pager = Ui.text(this, "", CompanionStyle.CAPTION)
         val prev = Ui.button(this, "‹ prev", heightDp = 72) { turn(-1) }
         val next = Ui.button(this, "next ›", heightDp = 72) { turn(+1) }
         pager.gravity = Gravity.CENTER
-        pager.textSize = 18f
         pager.setTextColor(Ui.INK)
         val footer = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL

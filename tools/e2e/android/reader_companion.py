@@ -30,6 +30,7 @@ def review(device, out):
             if time.monotonic()>deadline: raise TimeoutError(code)
             time.sleep(.2)
     def configure(mode, protected=False):
+        book=device.command('local ui=liveUI();return ui and ui.document and ui.document.file or ""')
         xml=ET.fromstring(saved)
         values={"orbit_mode":("string",mode),"setup_later_until":("long","9000000000000000"),
                 "helper_wifi":("boolean","false"),"helper_sleep_sync":("boolean","false"),
@@ -42,6 +43,16 @@ def review(device, out):
             if kind=="string": node.text=value
             else: node.set("value",value)
         store(ET.tostring(xml,encoding="unicode"))
+        if book:
+            # Android may kill provider clients when this test force-stops the companion.
+            # A fixture-mode change starts a new reader lifetime. Actual permission return
+            # tests below never reopen a book or restore a page to satisfy an assertion.
+            device.command('Library.companion.setupLater();local w=top();if w and type(w.text)=="string" and w.text:find("setup steps",1,true) then click("Later") end;Library.open({local_path='+json.dumps(book)+'});return true')
+            wait('return liveUI() and liveUI().document and liveUI().document.file=='+json.dumps(book)+' and "ready" or "pending"')
+            wait('return not Net.inflight and not ReadingSync.busy and "ready" or "pending"')
+            # Settle the fixture's independent remote-ahead consent before starting
+            # the next return-ticket case; never do this during a permission return.
+            device.command('if PositionPrompt.current then click("No") end;assert(not PositionPrompt.current);Library._readerCompanionReviewPage=liveUI().document:getCurrentPage();return true')
     def store(value):
         device.shell("am","force-stop",PACKAGE)
         with tempfile.TemporaryDirectory() as directory:
@@ -57,7 +68,7 @@ def review(device, out):
         wait('local v=ReaderCompanionView.active;return v and v.dialog and not v.busy and v.page=="helpers" and "ready" or "pending"')
     try:
         device.wait_companion()
-        device.command('if ReaderCompanionView.active then ReaderCompanionView.active:close() end;local w=top();if w and type(w.text)=="string" and w.text:find("setup steps",1,true) then click("Later") end;Library.companion.setupLater();Library.open({local_path="/storage/emulated/0/Books/001 Seedfall.epub"});return true')
+        device.command('if ReaderCompanionView.active then ReaderCompanionView.active:close() end;while SettingsView.active do local v=SettingsView.active;v.onBack=nil;v:close() end;local w=top();if w and type(w.text)=="string" and w.text:find("setup steps",1,true) then click("Later") end;Library.companion.setupLater();Library.open({local_path="/storage/emulated/0/Books/001 Seedfall.epub"});return true')
         wait('return liveUI() and liveUI().document and liveUI().document.file:find("Seedfall",1,true) and "ready" or "pending"')
         configure("full")
         # Position consent is an allowed reader action, separate from these sheets.

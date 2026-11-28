@@ -1,0 +1,674 @@
+[
+  {
+    "state": "signed-out",
+    "screen": "account",
+    "pair": "pairs/signed-out-account.webp",
+    "reference": "m8c-server-signed-out.webp",
+    "note": ""
+  },
+  {
+    "state": "signed-out",
+    "screen": "book-info",
+    "pair": "pairs/signed-out-book-info.webp",
+    "reference": "m8c-sheet-info.webp",
+    "note": ""
+  },
+  {
+    "state": "signed-out",
+    "screen": "bookmarks",
+    "pair": "pairs/signed-out-bookmarks.webp",
+    "reference": "m8c-sheet-marks.webp",
+    "note": ""
+  },
+  {
+    "state": "signed-out",
+    "screen": "checklist",
+    "pair": "pairs/signed-out-checklist.webp",
+    "reference": "checklist-0.png",
+    "note": "Native companion uses shared sans roles and Android system chrome. Long content scrolls. The approved reference supplies the visual family; synthetic setup/crash/account values differ."
+  },
+  {
+    "state": "signed-out",
+    "screen": "companion-reading",
+    "pair": "pairs/signed-out-companion-reading.webp",
+    "reference": "settings-reading.webp",
+    "note": "Native companion uses shared sans roles and Android system chrome. Long content scrolls. The approved reference supplies the visual family; synthetic setup/crash/account values differ."
+  },
+  {
+    "state": "signed-out",
+    "screen": "companion-settings",
+    "pair": "pairs/signed-out-companion-settings.webp",
+    "reference": "settings.webp",
+    "note": "Native companion uses shared sans roles and Android system chrome. Long content scrolls. The approved reference supplies the visual family; synthetic setup/crash/account values differ."
+  },
+  {
+    "state": "signed-out",
+    "screen": "companion-status",
+    "pair": "pairs/signed-out-companion-status.webp",
+    "reference": "launcher.png",
+    "note": "Native companion uses shared sans roles and Android system chrome. Long content scrolls. The approved reference supplies the visual family; synthetic setup/crash/account values differ."
+  },
+  {
+    "state": "signed-out",
+    "screen": "contents",
+    "pair": "pairs/signed-out-contents.webp",
+    "reference": "m8c-sheet-toc.webp",
+    "note": ""
+  },
+  {
+    "state": "signed-out",
+    "screen": "crash-summary",
+    "pair": "pairs/signed-out-crash-summary.webp",
+    "reference": "crash-1.png",
+    "note": "Native companion uses shared sans roles and Android system chrome. Long content scrolls. The approved reference supplies the visual family; synthetic setup/crash/account values differ."
+  },
+  {
+    "state": "signed-out",
+    "screen": "editor",
+    "pair": "pairs/signed-out-editor.webp",
+    "reference": "m8c-edit.webp",
+    "note": ""
+  },
+  {
+    "state": "signed-out",
+    "screen": "end-of-book",
+    "pair": "pairs/signed-out-end-of-book.webp",
+    "reference": "m8c-end.webp",
+    "note": ""
+  },
+  {
+    "state": "signed-out",
+    "screen": "filter",
+    "pair": "pairs/signed-out-filter.webp",
+    "reference": "m8c-filter-sheet.webp",
+    "note": ""
+  },
+  {
+    "state": "signed-out",
+    "screen": "goal-editor",
+    "pair": "pairs/signed-out-goal-editor.webp",
+    "reference": "goal-1.png",
+    "note": "Native companion uses shared sans roles and Android system chrome. Long content scrolls. The approved reference supplies the visual family; synthetic setup/crash/account values differ."
+  },
+  {
+    "state": "signed-out",
+    "screen": "goal",
+    "pair": "pairs/signed-out-goal.webp",
+    "reference": "goal-0.png",
+    "note": "Native companion uses shared sans roles and Android system chrome. Long content scrolls. The approved reference supplies the visual family; synthetic setup/crash/account values differ."
+  },
+  {
+    "state": "signed-out",
+    "screen": "goto",
+    "pair": "pairs/signed-out-goto.webp",
+    "reference": "m8c-sheet-goto.webp",
+    "note": ""
+  },
+  {
+    "state": "signed-out",
+    "screen": "home-1",
+    "pair": "pairs/signed-out-home-1.webp",
+    "reference": "m8c-home-1.webp",
+    "note": ""
+  },
+  {
+    "state": "signed-out",
+    "screen": "home-2",
+    "pair": "pairs/signed-out-home-2.webp",
+    "reference": "m8c-home-2.webp",
+    "note": ""
+  },
+  {
+    "state": "signed-out",
+    "screen": "library",
+    "pair": "pairs/signed-out-library.webp",
+    "reference": "m8c-list.webp",
+    "note": ""
+  },
+  {
+    "state": "signed-out",
+    "screen": "missed-reminder",
+    "pair": "pairs/signed-out-missed-reminder.webp",
+    "reference": "rem-Missed_reminder-and.png",
+    "note": "Approved 480\u00d7800 reminder viewport adapted to the wider M8C panel; fonts use bundled Noto and native rasterization. Due sheet preserves the real book. Sleep remains unavailable unless Android grants screen-off permission."
+  },
+  {
+    "state": "signed-out",
+    "screen": "picker",
+    "pair": "pairs/signed-out-picker.webp",
+    "reference": "m8c-picker.webp",
+    "note": ""
+  },
+  {
+    "state": "signed-out",
+    "screen": "reader-bottom",
+    "pair": "pairs/signed-out-reader-bottom.webp",
+    "reference": "m8c-r10-1-panel-custom.webp",
+    "note": ""
+  },
+  {
+    "state": "signed-out",
+    "screen": "reader-companion-helpers",
+    "pair": "pairs/signed-out-reader-companion-helpers.webp",
+    "reference": "reader-1.png",
+    "note": "Native companion uses shared sans roles and Android system chrome. Long content scrolls. The approved reference supplies the visual family; synthetic setup/crash/account values differ."
+  },
+  {
+    "state": "signed-out",
+    "screen": "reader-companion-status",
+    "pair": "pairs/signed-out-reader-companion-status.webp",
+    "reference": "reader-0.png",
+    "note": "Native companion uses shared sans roles and Android system chrome. Long content scrolls. The approved reference supplies the visual family; synthetic setup/crash/account values differ."
+  },
+  {
+    "state": "signed-out",
+    "screen": "reader-top",
+    "pair": "pairs/signed-out-reader-top.webp",
+    "reference": "m8c-reader-top.webp",
+    "note": ""
+  },
+  {
+    "state": "signed-out",
+    "screen": "reminder-editor",
+    "pair": "pairs/signed-out-reminder-editor.webp",
+    "reference": "rem-Edit_reminder-and.png",
+    "note": "Approved 480\u00d7800 reminder viewport adapted to the wider M8C panel; fonts use bundled Noto and native rasterization. Due sheet preserves the real book. Sleep remains unavailable unless Android grants screen-off permission."
+  },
+  {
+    "state": "signed-out",
+    "screen": "reminder-sheet",
+    "pair": "pairs/signed-out-reminder-sheet.webp",
+    "reference": "rem-Reminder_over_the_page-and.png",
+    "note": "Approved 480\u00d7800 reminder viewport adapted to the wider M8C panel; fonts use bundled Noto and native rasterization. Due sheet preserves the real book. Sleep remains unavailable unless Android grants screen-off permission."
+  },
+  {
+    "state": "signed-out",
+    "screen": "reminder-time",
+    "pair": "pairs/signed-out-reminder-time.webp",
+    "reference": "rem-Time_picker_12_hour-and.png",
+    "note": "Approved 480\u00d7800 reminder viewport adapted to the wider M8C panel; fonts use bundled Noto and native rasterization. Due sheet preserves the real book. Sleep remains unavailable unless Android grants screen-off permission."
+  },
+  {
+    "state": "signed-out",
+    "screen": "reminder-unknown-clock",
+    "pair": "pairs/signed-out-reminder-unknown-clock.webp",
+    "reference": "rem-Unknown_clock-and.png",
+    "note": "Approved 480\u00d7800 reminder viewport adapted to the wider M8C panel; fonts use bundled Noto and native rasterization. Due sheet preserves the real book. Sleep remains unavailable unless Android grants screen-off permission. Unknown-clock provider-error fixture: Android trusts the OS clock. Connect to Wi-Fi opens the existing companion Wi-Fi controls; it does not claim time sync."
+  },
+  {
+    "state": "signed-out",
+    "screen": "reminders",
+    "pair": "pairs/signed-out-reminders.webp",
+    "reference": "rem-Saved_reminders_On_and_Off-and.png",
+    "note": "Approved 480\u00d7800 reminder viewport adapted to the wider M8C panel; fonts use bundled Noto and native rasterization. Due sheet preserves the real book. Sleep remains unavailable unless Android grants screen-off permission."
+  },
+  {
+    "state": "signed-out",
+    "screen": "rest-eyes-interval",
+    "pair": "pairs/signed-out-rest-eyes-interval.webp",
+    "reference": "rem-Eye_rest_interval_picker-and.png",
+    "note": "Approved 480\u00d7800 reminder viewport adapted to the wider M8C panel; fonts use bundled Noto and native rasterization. Due sheet preserves the real book. Sleep remains unavailable unless Android grants screen-off permission."
+  },
+  {
+    "state": "signed-out",
+    "screen": "rest-eyes-settings",
+    "pair": "pairs/signed-out-rest-eyes-settings.webp",
+    "reference": "rem-Rest_your_eyes_Settings-and.png",
+    "note": "Approved 480\u00d7800 reminder viewport adapted to the wider M8C panel; fonts use bundled Noto and native rasterization. Due sheet preserves the real book. Sleep remains unavailable unless Android grants screen-off permission."
+  },
+  {
+    "state": "signed-out",
+    "screen": "rest-eyes-sheet",
+    "pair": "pairs/signed-out-rest-eyes-sheet.webp",
+    "reference": "rem-Rest_your_eyes_over_the_page-and.png",
+    "note": "Approved 480\u00d7800 reminder viewport adapted to the wider M8C panel; fonts use bundled Noto and native rasterization. Due sheet preserves the real book. Sleep remains unavailable unless Android grants screen-off permission."
+  },
+  {
+    "state": "signed-out",
+    "screen": "search",
+    "pair": "pairs/signed-out-search.webp",
+    "reference": "m8c-sheet-search.webp",
+    "note": ""
+  },
+  {
+    "state": "signed-out",
+    "screen": "series",
+    "pair": "pairs/signed-out-series.webp",
+    "reference": "m8c-series.webp",
+    "note": ""
+  },
+  {
+    "state": "signed-out",
+    "screen": "settings-about",
+    "pair": "pairs/signed-out-settings-about.webp",
+    "reference": "m8c-settings-about.webp",
+    "note": ""
+  },
+  {
+    "state": "signed-out",
+    "screen": "settings-home",
+    "pair": "pairs/signed-out-settings-home.webp",
+    "reference": "m8c-settings.webp",
+    "note": "Parent Settings reference: no dedicated approved crop exists for this section."
+  },
+  {
+    "state": "signed-out",
+    "screen": "settings-library",
+    "pair": "pairs/signed-out-settings-library.webp",
+    "reference": "m8c-settings-library.webp",
+    "note": ""
+  },
+  {
+    "state": "signed-out",
+    "screen": "settings-reading-2",
+    "pair": "pairs/signed-out-settings-reading-2.webp",
+    "reference": "m8c-settings.webp",
+    "note": "Parent Settings reference: no dedicated approved crop exists for this section."
+  },
+  {
+    "state": "signed-out",
+    "screen": "settings-reading",
+    "pair": "pairs/signed-out-settings-reading.webp",
+    "reference": "m8c-r10-3-settings-reading.webp",
+    "note": ""
+  },
+  {
+    "state": "signed-out",
+    "screen": "settings-root",
+    "pair": "pairs/signed-out-settings-root.webp",
+    "reference": "m8c-settings.webp",
+    "note": ""
+  },
+  {
+    "state": "signed-out",
+    "screen": "settings-sleep-2",
+    "pair": "pairs/signed-out-settings-sleep-2.webp",
+    "reference": "m8c-settings.webp",
+    "note": "Parent Settings reference: no dedicated approved crop exists for this section."
+  },
+  {
+    "state": "signed-out",
+    "screen": "settings-sleep",
+    "pair": "pairs/signed-out-settings-sleep.webp",
+    "reference": "m8c-settings.webp",
+    "note": "Parent Settings reference: no dedicated approved crop exists for this section."
+  },
+  {
+    "state": "signed-out",
+    "screen": "settings-sync-2",
+    "pair": "pairs/signed-out-settings-sync-2.webp",
+    "reference": "m8c-settings.webp",
+    "note": "Parent Settings reference: no dedicated approved crop exists for this section."
+  },
+  {
+    "state": "signed-out",
+    "screen": "settings-sync-3",
+    "pair": "pairs/signed-out-settings-sync-3.webp",
+    "reference": "m8c-settings.webp",
+    "note": "Parent Settings reference: no dedicated approved crop exists for this section."
+  },
+  {
+    "state": "signed-out",
+    "screen": "settings-sync",
+    "pair": "pairs/signed-out-settings-sync.webp",
+    "reference": "m8c-settings.webp",
+    "note": "Parent Settings reference: no dedicated approved crop exists for this section."
+  },
+  {
+    "state": "signed-out",
+    "screen": "settings-updates",
+    "pair": "pairs/signed-out-settings-updates.webp",
+    "reference": "m8c-settings.webp",
+    "note": "Parent Settings reference: no dedicated approved crop exists for this section."
+  },
+  {
+    "state": "signed-out",
+    "screen": "signin",
+    "pair": "pairs/signed-out-signin.webp",
+    "reference": "m8c-signin-form.webp",
+    "note": ""
+  },
+  {
+    "state": "signed-out",
+    "screen": "storage",
+    "pair": "pairs/signed-out-storage.webp",
+    "reference": "m8c-storage.webp",
+    "note": ""
+  },
+  {
+    "state": "signed-in",
+    "screen": "account",
+    "pair": "pairs/signed-in-account.webp",
+    "reference": "m8c-server-signed-in.webp",
+    "note": ""
+  },
+  {
+    "state": "signed-in",
+    "screen": "book-info",
+    "pair": "pairs/signed-in-book-info.webp",
+    "reference": "m8c-sheet-info.webp",
+    "note": ""
+  },
+  {
+    "state": "signed-in",
+    "screen": "bookmarks",
+    "pair": "pairs/signed-in-bookmarks.webp",
+    "reference": "m8c-sheet-marks.webp",
+    "note": ""
+  },
+  {
+    "state": "signed-in",
+    "screen": "checklist",
+    "pair": "pairs/signed-in-checklist.webp",
+    "reference": "checklist-0.png",
+    "note": "Native companion uses shared sans roles and Android system chrome. Long content scrolls. The approved reference supplies the visual family; synthetic setup/crash/account values differ."
+  },
+  {
+    "state": "signed-in",
+    "screen": "companion-reading",
+    "pair": "pairs/signed-in-companion-reading.webp",
+    "reference": "settings-reading.webp",
+    "note": "Native companion uses shared sans roles and Android system chrome. Long content scrolls. The approved reference supplies the visual family; synthetic setup/crash/account values differ."
+  },
+  {
+    "state": "signed-in",
+    "screen": "companion-settings",
+    "pair": "pairs/signed-in-companion-settings.webp",
+    "reference": "settings.webp",
+    "note": "Native companion uses shared sans roles and Android system chrome. Long content scrolls. The approved reference supplies the visual family; synthetic setup/crash/account values differ."
+  },
+  {
+    "state": "signed-in",
+    "screen": "companion-status",
+    "pair": "pairs/signed-in-companion-status.webp",
+    "reference": "launcher.png",
+    "note": "Native companion uses shared sans roles and Android system chrome. Long content scrolls. The approved reference supplies the visual family; synthetic setup/crash/account values differ."
+  },
+  {
+    "state": "signed-in",
+    "screen": "contents",
+    "pair": "pairs/signed-in-contents.webp",
+    "reference": "m8c-sheet-toc.webp",
+    "note": ""
+  },
+  {
+    "state": "signed-in",
+    "screen": "crash-summary",
+    "pair": "pairs/signed-in-crash-summary.webp",
+    "reference": "crash-1.png",
+    "note": "Native companion uses shared sans roles and Android system chrome. Long content scrolls. The approved reference supplies the visual family; synthetic setup/crash/account values differ."
+  },
+  {
+    "state": "signed-in",
+    "screen": "editor",
+    "pair": "pairs/signed-in-editor.webp",
+    "reference": "m8c-edit.webp",
+    "note": ""
+  },
+  {
+    "state": "signed-in",
+    "screen": "end-of-book",
+    "pair": "pairs/signed-in-end-of-book.webp",
+    "reference": "m8c-end.webp",
+    "note": ""
+  },
+  {
+    "state": "signed-in",
+    "screen": "filter",
+    "pair": "pairs/signed-in-filter.webp",
+    "reference": "m8c-filter-sheet.webp",
+    "note": ""
+  },
+  {
+    "state": "signed-in",
+    "screen": "goal-editor",
+    "pair": "pairs/signed-in-goal-editor.webp",
+    "reference": "goal-1.png",
+    "note": "Native companion uses shared sans roles and Android system chrome. Long content scrolls. The approved reference supplies the visual family; synthetic setup/crash/account values differ."
+  },
+  {
+    "state": "signed-in",
+    "screen": "goal",
+    "pair": "pairs/signed-in-goal.webp",
+    "reference": "goal-0.png",
+    "note": "Native companion uses shared sans roles and Android system chrome. Long content scrolls. The approved reference supplies the visual family; synthetic setup/crash/account values differ."
+  },
+  {
+    "state": "signed-in",
+    "screen": "goto",
+    "pair": "pairs/signed-in-goto.webp",
+    "reference": "m8c-sheet-goto.webp",
+    "note": ""
+  },
+  {
+    "state": "signed-in",
+    "screen": "home-1",
+    "pair": "pairs/signed-in-home-1.webp",
+    "reference": "m8c-home-1.webp",
+    "note": ""
+  },
+  {
+    "state": "signed-in",
+    "screen": "home-2",
+    "pair": "pairs/signed-in-home-2.webp",
+    "reference": "m8c-home-2.webp",
+    "note": ""
+  },
+  {
+    "state": "signed-in",
+    "screen": "library",
+    "pair": "pairs/signed-in-library.webp",
+    "reference": "m8c-list.webp",
+    "note": ""
+  },
+  {
+    "state": "signed-in",
+    "screen": "missed-reminder",
+    "pair": "pairs/signed-in-missed-reminder.webp",
+    "reference": "rem-Missed_reminder-and.png",
+    "note": "Approved 480\u00d7800 reminder viewport adapted to the wider M8C panel; fonts use bundled Noto and native rasterization. Due sheet preserves the real book. Sleep remains unavailable unless Android grants screen-off permission."
+  },
+  {
+    "state": "signed-in",
+    "screen": "picker",
+    "pair": "pairs/signed-in-picker.webp",
+    "reference": "m8c-picker.webp",
+    "note": ""
+  },
+  {
+    "state": "signed-in",
+    "screen": "reader-bottom",
+    "pair": "pairs/signed-in-reader-bottom.webp",
+    "reference": "m8c-r10-1-panel-custom.webp",
+    "note": ""
+  },
+  {
+    "state": "signed-in",
+    "screen": "reader-companion-helpers",
+    "pair": "pairs/signed-in-reader-companion-helpers.webp",
+    "reference": "reader-1.png",
+    "note": "Native companion uses shared sans roles and Android system chrome. Long content scrolls. The approved reference supplies the visual family; synthetic setup/crash/account values differ."
+  },
+  {
+    "state": "signed-in",
+    "screen": "reader-companion-status",
+    "pair": "pairs/signed-in-reader-companion-status.webp",
+    "reference": "reader-0.png",
+    "note": "Native companion uses shared sans roles and Android system chrome. Long content scrolls. The approved reference supplies the visual family; synthetic setup/crash/account values differ."
+  },
+  {
+    "state": "signed-in",
+    "screen": "reader-top",
+    "pair": "pairs/signed-in-reader-top.webp",
+    "reference": "m8c-reader-top.webp",
+    "note": ""
+  },
+  {
+    "state": "signed-in",
+    "screen": "reminder-editor",
+    "pair": "pairs/signed-in-reminder-editor.webp",
+    "reference": "rem-Edit_reminder-and.png",
+    "note": "Approved 480\u00d7800 reminder viewport adapted to the wider M8C panel; fonts use bundled Noto and native rasterization. Due sheet preserves the real book. Sleep remains unavailable unless Android grants screen-off permission."
+  },
+  {
+    "state": "signed-in",
+    "screen": "reminder-sheet",
+    "pair": "pairs/signed-in-reminder-sheet.webp",
+    "reference": "rem-Reminder_over_the_page-and.png",
+    "note": "Approved 480\u00d7800 reminder viewport adapted to the wider M8C panel; fonts use bundled Noto and native rasterization. Due sheet preserves the real book. Sleep remains unavailable unless Android grants screen-off permission."
+  },
+  {
+    "state": "signed-in",
+    "screen": "reminder-time",
+    "pair": "pairs/signed-in-reminder-time.webp",
+    "reference": "rem-Time_picker_12_hour-and.png",
+    "note": "Approved 480\u00d7800 reminder viewport adapted to the wider M8C panel; fonts use bundled Noto and native rasterization. Due sheet preserves the real book. Sleep remains unavailable unless Android grants screen-off permission."
+  },
+  {
+    "state": "signed-in",
+    "screen": "reminder-unknown-clock",
+    "pair": "pairs/signed-in-reminder-unknown-clock.webp",
+    "reference": "rem-Unknown_clock-and.png",
+    "note": "Approved 480\u00d7800 reminder viewport adapted to the wider M8C panel; fonts use bundled Noto and native rasterization. Due sheet preserves the real book. Sleep remains unavailable unless Android grants screen-off permission. Unknown-clock provider-error fixture: Android trusts the OS clock. Connect to Wi-Fi opens the existing companion Wi-Fi controls; it does not claim time sync."
+  },
+  {
+    "state": "signed-in",
+    "screen": "reminders",
+    "pair": "pairs/signed-in-reminders.webp",
+    "reference": "rem-Saved_reminders_On_and_Off-and.png",
+    "note": "Approved 480\u00d7800 reminder viewport adapted to the wider M8C panel; fonts use bundled Noto and native rasterization. Due sheet preserves the real book. Sleep remains unavailable unless Android grants screen-off permission."
+  },
+  {
+    "state": "signed-in",
+    "screen": "rest-eyes-interval",
+    "pair": "pairs/signed-in-rest-eyes-interval.webp",
+    "reference": "rem-Eye_rest_interval_picker-and.png",
+    "note": "Approved 480\u00d7800 reminder viewport adapted to the wider M8C panel; fonts use bundled Noto and native rasterization. Due sheet preserves the real book. Sleep remains unavailable unless Android grants screen-off permission."
+  },
+  {
+    "state": "signed-in",
+    "screen": "rest-eyes-settings",
+    "pair": "pairs/signed-in-rest-eyes-settings.webp",
+    "reference": "rem-Rest_your_eyes_Settings-and.png",
+    "note": "Approved 480\u00d7800 reminder viewport adapted to the wider M8C panel; fonts use bundled Noto and native rasterization. Due sheet preserves the real book. Sleep remains unavailable unless Android grants screen-off permission."
+  },
+  {
+    "state": "signed-in",
+    "screen": "rest-eyes-sheet",
+    "pair": "pairs/signed-in-rest-eyes-sheet.webp",
+    "reference": "rem-Rest_your_eyes_over_the_page-and.png",
+    "note": "Approved 480\u00d7800 reminder viewport adapted to the wider M8C panel; fonts use bundled Noto and native rasterization. Due sheet preserves the real book. Sleep remains unavailable unless Android grants screen-off permission."
+  },
+  {
+    "state": "signed-in",
+    "screen": "search",
+    "pair": "pairs/signed-in-search.webp",
+    "reference": "m8c-sheet-search.webp",
+    "note": ""
+  },
+  {
+    "state": "signed-in",
+    "screen": "series",
+    "pair": "pairs/signed-in-series.webp",
+    "reference": "m8c-series.webp",
+    "note": ""
+  },
+  {
+    "state": "signed-in",
+    "screen": "settings-about",
+    "pair": "pairs/signed-in-settings-about.webp",
+    "reference": "m8c-settings-about.webp",
+    "note": ""
+  },
+  {
+    "state": "signed-in",
+    "screen": "settings-home",
+    "pair": "pairs/signed-in-settings-home.webp",
+    "reference": "m8c-settings.webp",
+    "note": "Parent Settings reference: no dedicated approved crop exists for this section."
+  },
+  {
+    "state": "signed-in",
+    "screen": "settings-library",
+    "pair": "pairs/signed-in-settings-library.webp",
+    "reference": "m8c-settings-library.webp",
+    "note": ""
+  },
+  {
+    "state": "signed-in",
+    "screen": "settings-reading-2",
+    "pair": "pairs/signed-in-settings-reading-2.webp",
+    "reference": "m8c-settings.webp",
+    "note": "Parent Settings reference: no dedicated approved crop exists for this section."
+  },
+  {
+    "state": "signed-in",
+    "screen": "settings-reading",
+    "pair": "pairs/signed-in-settings-reading.webp",
+    "reference": "m8c-r10-3-settings-reading.webp",
+    "note": ""
+  },
+  {
+    "state": "signed-in",
+    "screen": "settings-root",
+    "pair": "pairs/signed-in-settings-root.webp",
+    "reference": "m8c-settings.webp",
+    "note": ""
+  },
+  {
+    "state": "signed-in",
+    "screen": "settings-sleep-2",
+    "pair": "pairs/signed-in-settings-sleep-2.webp",
+    "reference": "m8c-settings.webp",
+    "note": "Parent Settings reference: no dedicated approved crop exists for this section."
+  },
+  {
+    "state": "signed-in",
+    "screen": "settings-sleep",
+    "pair": "pairs/signed-in-settings-sleep.webp",
+    "reference": "m8c-settings.webp",
+    "note": "Parent Settings reference: no dedicated approved crop exists for this section."
+  },
+  {
+    "state": "signed-in",
+    "screen": "settings-sync-2",
+    "pair": "pairs/signed-in-settings-sync-2.webp",
+    "reference": "m8c-settings.webp",
+    "note": "Parent Settings reference: no dedicated approved crop exists for this section."
+  },
+  {
+    "state": "signed-in",
+    "screen": "settings-sync-3",
+    "pair": "pairs/signed-in-settings-sync-3.webp",
+    "reference": "m8c-settings.webp",
+    "note": "Parent Settings reference: no dedicated approved crop exists for this section."
+  },
+  {
+    "state": "signed-in",
+    "screen": "settings-sync",
+    "pair": "pairs/signed-in-settings-sync.webp",
+    "reference": "m8c-settings.webp",
+    "note": "Parent Settings reference: no dedicated approved crop exists for this section."
+  },
+  {
+    "state": "signed-in",
+    "screen": "settings-updates",
+    "pair": "pairs/signed-in-settings-updates.webp",
+    "reference": "m8c-settings.webp",
+    "note": "Parent Settings reference: no dedicated approved crop exists for this section."
+  },
+  {
+    "state": "signed-in",
+    "screen": "signin",
+    "pair": "pairs/signed-in-signin.webp",
+    "reference": "m8c-signin-form.webp",
+    "note": ""
+  },
+  {
+    "state": "signed-in",
+    "screen": "storage",
+    "pair": "pairs/signed-in-storage.webp",
+    "reference": "m8c-storage.webp",
+    "note": ""
+  }
+]

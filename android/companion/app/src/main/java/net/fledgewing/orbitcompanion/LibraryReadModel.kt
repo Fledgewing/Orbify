@@ -48,7 +48,7 @@ class LibraryReadModel(
         // Never take ownership from a read command, nor expose a prior account's data.
         if (owner != DeviceLibrary.OWNER && store.meta("owner") != owner) return false
         val local = owner == DeviceLibrary.OWNER
-        val projection = if (local) DeviceLibrary(roots()) else adapter ?: ServerAdapters.forStore(store, clock = clock,
+        val projection = if (local) DeviceLibrary(roots(),store.root,clock) else adapter ?: ServerAdapters.forStore(store, clock = clock,
             fallbackReadingStats = fallbackReadingStats, accountState = accountState, accountStats = accountStats)
         val personal by lazy {
             val roots = roots()
@@ -82,7 +82,7 @@ class LibraryReadModel(
                     localUnopened!=null -> localUnopened
                     else -> when (args["op"]) {
                     "storage.summary" -> storage.summary(owner,(args["exclude_path"] as? String)?.let(LuaValue::utf8),(args["current_folder"] as? String)?.let(LuaValue::utf8))
-                    "reader.controls" -> ReaderControls.project(args["native"] as? Map<*, *> ?: emptyMap<Any, Any>())
+                    "reader.controls" -> ReaderControls.read(args["native"] as? Map<*, *> ?: emptyMap<Any, Any>(),java.io.File(store.root.parentFile,"statistics.sqlite3"),clock())
 
                     "personal.reading" -> personal.window(args["kind"] as? String ?: "", clock(), (args["pick"] as? Number)?.toLong() ?: 0)
                     "reading.local" -> localCompletion
@@ -161,8 +161,9 @@ class LibraryReadModel(
         "groups", "series", "counts", "facets", "sources", "personal.reading"))
 
     fun storageCommand(owner: String, op: String, args: Map<*, *>): Map<String, Any?> {
-        val projection = if (owner == DeviceLibrary.OWNER) DeviceLibrary(roots()) else adapter ?: ServerAdapters.forStore(
+        val projection = if (owner == DeviceLibrary.OWNER) DeviceLibrary(roots(),store.root,clock) else adapter ?: ServerAdapters.forStore(
             store, clock = clock, fallbackReadingStats = fallbackReadingStats, accountState = accountState, accountStats = accountStats)
+        if(op=="covers.acquire") return projection.project(owner,mapOf("op" to "cover","key" to args["key"]))
         val result = if(op=="storage.refresh") mapOf("ok" to true) else DeviceStorage(store, projection).command(owner, op, args)
         if(op=="storage.remove.preview") return result
         // Local files are shared, but each owner is projected independently with fresh batch context.

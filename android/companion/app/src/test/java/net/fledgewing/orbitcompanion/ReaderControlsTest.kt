@@ -34,7 +34,7 @@ class ReaderControlsTest {
                     LuaValue.parse(it.bytes(0)!!) as Map<*, *>
                 }.single()
                 val item=(snapshot["items"] as List<*>).single() as Map<*, *>
-                assertEquals("p. 50 of 200 · 25%",item["position"])
+                assertEquals(LuaValue.str("p. 50 of 200 · 25%"),item["position"])
                 assertEquals(true,item["marked"])
                 assertFalse(LibraryReadModel(store,{99},{},adapter=adapter).publish("another-owner",listOf(request)))
             }
@@ -53,22 +53,22 @@ class ReaderControlsTest {
         val item=row(mapOf("page" to 50,"total" to 200,"marked" to true,
             "chapters" to listOf(1,100,50,50,-1,201,Double.POSITIVE_INFINITY),"bookmarks" to listOf(200,1)))
         assertEquals(.25,item["progress"])
-        assertEquals("p. 50 of 200 · 25%",item["position"])
+        assertEquals(LuaValue.str("p. 50 of 200 · 25%"),item["position"])
         assertEquals("Chapter 2 of 3",item["chapter"])
         assertEquals(listOf(.005,.25,.5),item["chapters"])
         assertEquals(listOf(.005,1.0),item["bookmarks"])
         assertEquals(true,item["marked"])
     }
     @Test fun pagePercentagesUseTheSameHalfUpRoundingAsTheReaderHeader() {
-        assertEquals("p. 1 of 200 · 1%",row(mapOf("page" to 1,"total" to 200))["position"])
-        assertEquals("p. 199 of 200 · 100%",row(mapOf("page" to 199,"total" to 200))["position"])
-        assertEquals("p. 1 of 300 · 0%",row(mapOf("page" to 1,"total" to 300))["position"])
+        assertEquals(LuaValue.str("p. 1 of 200 · 1%"),row(mapOf("page" to 1,"total" to 200))["position"])
+        assertEquals(LuaValue.str("p. 199 of 200 · 100%"),row(mapOf("page" to 199,"total" to 200))["position"])
+        assertEquals(LuaValue.str("p. 1 of 300 · 0%"),row(mapOf("page" to 1,"total" to 300))["position"])
     }
     @Test fun nativeChapterIdentityDoesNotBecomeTheSampleCount() {
         val item=row(mapOf("page" to 8000,"total" to 10000,"chapters" to (1..64).toList(),
             "chapter_total" to 1000,"chapter_index" to 800,"chapter_title" to "A chapter"))
         assertEquals("Chapter 800 of 1000",item["chapter"])
-        assertEquals("800 · A chapter",item["chapter_title"])
+        assertEquals(LuaValue.str("800 · A chapter"),item["chapter_title"])
         assertEquals(true,item["markers_reduced"])
     }
     @Test fun markerWindowsAndEncodedSnapshotStayBounded() {
@@ -78,4 +78,21 @@ class ReaderControlsTest {
         assertEquals(64,(item["bookmarks"] as List<*>).size)
         assertTrue(LuaValue.encode(ReaderControls.project(native)).size<=16384)
     }
+    @Test fun labelsRoundTripThroughTheUtf8ByteModelExactlyOnce() {
+        val item=row(mapOf("page" to 12,"total" to 20,"chapter_total" to 4,"chapter_index" to 3,
+            "chapter_title" to LuaValue.str("Lumière · 海"),"chapters" to listOf(1,5,10,15)))
+        val encoded=LuaValue.encode(item)
+        val parsed=LuaValue.parse(encoded) as Map<*, *>
+        assertEquals("3 · Lumière · 海",LuaValue.utf8(parsed["chapter_title"] as String))
+        assertEquals("p. 12 of 20 · 60%",LuaValue.utf8(parsed["position"] as String))
+    }
+
+    @Test fun measuredPacePopulatesBothReaderPanelsWithoutInventingMissingPace() {
+        val native=mapOf("page" to 211,"total" to 341,"next_page" to 228,"chapter_index" to 14,"chapter_total" to 22)
+        val item=(ReaderControls.project(native,mapOf("seconds_per_fraction" to 31700.0))["items"] as List<*>).single() as Map<*,*>
+        assertEquals("3 h 22 m left in book",LuaValue.utf8(item["time_left"] as String))
+        assertEquals("27 m left in chapter",LuaValue.utf8(item["chapter_time_left"] as String))
+        assertNull(row(native)["time_left"]);assertNull(row(native)["chapter_time_left"])
+    }
+
 }

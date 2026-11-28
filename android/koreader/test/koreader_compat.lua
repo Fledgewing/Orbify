@@ -54,7 +54,7 @@ local NEEDS = {
     { "frontend/apps/reader/modules/readerrolling.lua", { "onGotoXPointer" } },
     { "frontend/document/koptinterface.lua", { "nativeToPageRectTransform" } },
 
-    { "frontend/device/android/device.lua", { {"home_dir", F} } },
+    { "frontend/device/android/device.lua", { {"home_dir", F}, {"android.isResumed()", T} } },
     -- Library's native reader-control adapter (pin documented in G-READER-NOTES.md).
     { "frontend/apps/reader/modules/readertoc.lua", { "onShowToc", {"toc", F} } },
     { "frontend/apps/reader/modules/readerannotation.lua", { {"annotations", F}, "getPageRef" } },
@@ -78,7 +78,7 @@ local NEEDS = {
     { "frontend/ui/widget/infomessage.lua", { {"dismiss_callback", F} } },
     { "frontend/ui/trapper.lua", { "wrap", "info", "dismissableRunInSubprocess" } },
     { "frontend/ui/uimanager.lua", { "show", "close", "scheduleIn", "nextTick", "unschedule", "setDirty",
-        "forceRePaint", "getElapsedTimeSinceBoot", "getTopmostVisibleWidget", "quit", "restartKOReader",
+        "handleInput", "forceRePaint", "getElapsedTimeSinceBoot", "getTopmostVisibleWidget", "quit", "restartKOReader",
         "sendEvent", "broadcastEvent", "_repaint", { "_window_stack", F }, { "_refresh_stack", F },
         { "refresh_methods", T } } },
     { "*", { "isConnected", "isWifiOn", "turnOnWifi", "turnOffWifi", "beforeWifiAction",
@@ -136,11 +136,17 @@ local NEEDS = {
     { "frontend/gettext.lua", { { "GetText", T } } },
     { "frontend/ui/widget/container/widgetcontainer.lua", { { "extend", T }, "paintTo", "free" } },
     { "frontend/ui/widget/container/inputcontainer.lua", { { "ges_events", T }, "paintTo" } },
-    -- Owned Home: absolute grid placements, ordinary buttons and a plain progress bar.
+    -- Owned Home and shared kit: native rounded frames, explicit font faces and icons.
     { "frontend/ui/widget/overlapgroup.lua", { "paintTo", {"overlap_offset", T}, {"allow_mirroring", F} } },
     { "frontend/ui/widget/progresswidget.lua", { "paintTo", {"percentage", F} } },
     { "frontend/ui/widget/button.lua", { "onFocus", "onUnfocus", {"height", F}, {"text_font_size", F}, {"avoid_text_truncation", F} } },
-    { "frontend/ui/widget/container/framecontainer.lua", { {"radius", F}, {"background", F} } },
+    { "frontend/ui/widget/container/framecontainer.lua", { {"radius", F}, {"background", F}, {"padding", F}, "getSize", "paintTo" } },
+    { "frontend/ui/widget/iconwidget.lua", { {"icon", F} } },
+    { "frontend/apps/reader/readerui.lua", { {"doc_props", T} } },
+    -- V2 reader sheets: native input, dimmed book backdrop and contextual matches.
+    { "frontend/ui/widget/container/alphacontainer.lua", { "paintTo", {"alpha", F} } },
+    { "frontend/ui/widget/inputtext.lua", { "getText", "onShowKeyboard", "onCloseKeyboard", {"enter_callback", T}, {"parent", F} } },
+    { "frontend/ui/widget/textboxwidget.lua", { {"PTF_HEADER", F}, {"PTF_BOLD_START", F}, {"PTF_BOLD_END", F}, {"height_overflow_show_ellipsis", F} } },
     -- Device-local Custom reading styles: quiet native setters and in-place Settings return.
     { "frontend/apps/reader/modules/readerfont.lua", { {"font_face", F}, {"font_base_weight", T}, {"line_spacing", T}, {"font_gamma", T} } },
     { "frontend/document/credocument.lua", { "setFontFace", "setFontBaseWeight", "setEmbeddedFonts", "setInterlineSpacePercent", "setGammaIndex", "engineInit" } },
@@ -156,8 +162,8 @@ local NEEDS = {
     { "frontend/apps/reader/modules/readertoc.lua", { "getTocTitleByPage" } },
     { "frontend/document/document.lua", { "getPageCount" } },
     { "frontend/ui/widget/widget.lua", { "getSize" } },
-    { "frontend/ui/widget/textwidget.lua", { "getSize", "paintTo", "free" } },
-    { "frontend/ui/widget/imagewidget.lua", { "_render", "paintTo", "free" } },
+    { "frontend/ui/widget/textwidget.lua", { "getSize", "paintTo", "free", "setText", "isTruncated" } },
+    { "frontend/ui/widget/imagewidget.lua", { "_render", "paintTo", "free", {"rotation_angle", F} } },
     { "frontend/device/generic/device.lua", { "getPowerDevice" } },
     { "frontend/apps/reader/modules/readerdictionary.lua", { "onLookupWord" } },
     { "frontend/device/generic/powerd.lua", { "getCapacity", "isCharging" } },
@@ -175,6 +181,7 @@ local NEEDS = {
 -- Widgets the plugin builds with: each module must still exist.
 for _, w in ipairs({ "infomessage", "textviewer", "confirmbox", "button", "container/bottomcontainer",
     "container/framecontainer", "horizontalgroup", "horizontalspan", "linewidget", "textboxwidget",
+    "container/alphacontainer",
     "verticalgroup", "verticalspan", "buttontable", "textwidget", "imagewidget", "container/centercontainer",
     "container/leftcontainer", "menu", "buttondialog", "notification" }) do
     table.insert(NEEDS, { "frontend/ui/widget/" .. w .. ".lua", {} })
@@ -188,7 +195,7 @@ local BASE = {
     { "ffi/util.lua", { "runInSubProcess", "isSubProcessDone", "readAllFromFD", "writeToFD",
         "terminateSubProcess" } },
     { "ffi/input_android.lua", { { "waitForEvent", T } } },
-    { "ffi/blitbuffer.lua", { { "COLOR_BLACK", F }, { "COLOR_WHITE", F }, { "COLOR_LIGHT_GRAY", F }, { "COLOR_GRAY", F }, { "COLOR_DARK_GRAY", F }, "paintRect", "writeToFile", "free", {"Color8", T} } },
+    { "ffi/blitbuffer.lua", { { "COLOR_BLACK", F }, { "COLOR_WHITE", F }, { "COLOR_LIGHT_GRAY", F }, { "COLOR_GRAY", F }, { "COLOR_DARK_GRAY", F }, "paintRoundedRect", "paintBorder", "lightenRect", "paintRect", "writeToFile", "free", {"Color8", T} } },
     { "ffi/framebuffer_android.lua", { "getRotationMode", "setRotationMode", { "ASCREEN_ORIENTATION_", T } } },
     -- The offline cache's database (ko/db.lua; docs/design/sqlite-cache.md), as KOReader's statistics plugin uses it.
     { "thirdparty/lua-ljsqlite3/init.lua", { "open", "set_busy_timeout", "prepare", "exec", "rowexec", "step", "bind",

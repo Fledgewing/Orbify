@@ -25,7 +25,9 @@ return function(here,test,eq,ok)
         function manager:scheduleIn(_,fn) table.insert(self.scheduled,fn) end
         e.UIManager=manager
         function e.Device.screen:getWidth() return 1200 end
+        function e.Device.screen:getHeight() return 1600 end
         function e.Device.screen:scaleBySize(v) return v end
+        e.SettingsPage={new=function(o) o.onClose=o.onBack;return o end}
         e.require=function(name)
             eq(name,"ui/widget/buttondialog")
             return {new=function(_,value) value.moveFocusTo=function(self,_,row) self.focus=row end;return value end}
@@ -45,7 +47,7 @@ return function(here,test,eq,ok)
     test("reader companion: missing/version worker uses existing problem without snapshot call",function()
         for _,message in ipairs({"BookSync Companion needed","Update BookSync Companion"}) do
             local e,V=world();e.Companion.workerProblem=function() return message end
-            local v=V.open();eq(e.reads,0);eq(e.decoded,0);ok(v.dialog.title:find(message,1,true))
+            local v=V.open();eq(e.reads,0);eq(e.decoded,0);ok(v.dialog.intro:find(message,1,true))
         end
     end)
     test("reader companion: oversized and excess-row replies are unavailable before presentation",function()
@@ -111,4 +113,19 @@ return function(here,test,eq,ok)
         e.Library.isForeground=function() return false end
         local count=m.shown;e.done({ok=true});eq(m.shown,count)
     end)
+    test("reader companion: navigation is a two-button footer and helper states are values",function()
+        local e,V=world()
+        for _,page in ipairs({"status","helpers"}) do
+            local v=V.open(page);local footer={}
+            for _,r in ipairs(v.dialog.rows) do
+                ok(r.id~="back" and r.id~="close" and r.id~="protected" and r.id~="recovery")
+                if r.id=="wifi" or r.id=="sleep" or r.id=="screen" then eq(r.detail,"Off") end
+            end
+            local K={px=function(n) return n end,button=function(o) return o end}
+            eq(v.dialog.content(K,{},1200,100,function(b,_,_,id) footer[#footer+1]=id end),172)
+            eq(#footer,2);eq(footer[1],"protected");eq(footer[2],"back");ok(v.dialog.fitContent)
+            v:close()
+        end
+    end)
+
 end

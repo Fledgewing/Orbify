@@ -62,12 +62,12 @@ object SharpCoversRow : SettingsSlots.Slot {
     /** The OPDS login, once: the password goes to one request and is cleared; only the cover link is kept. */
     private fun signIn(a: SettingsPage, acct: SharpCovers.Account) {
         val pad = Ui.dp(a, 16)
-        val user = android.widget.EditText(a).apply {
+        val user = Ui.input(a).apply {
             hint = "OPDS username"
             setText(SharpCovers.user(a) ?: acct.user)
             inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD
         }
-        val pass = android.widget.EditText(a).apply {
+        val pass = Ui.input(a).apply {
             hint = "OPDS password"
             inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
         }

@@ -19,6 +19,7 @@ from run import Emulator
 
 def review(device,out):
     out.mkdir(parents=True,exist_ok=True)
+    device.shell("settings","put","system","time_12_24","24")
     checks=[]
     zone=ZoneInfo(device.shell("getprop","persist.sys.timezone") or "UTC")
     wall=int(datetime(2026,11,27,20,0,tzinfo=zone).timestamp()*1000)
@@ -41,6 +42,8 @@ def review(device,out):
             time.sleep(.1)
     def check(name,code='return true'):
         device.command(code)
+        device.command('UI:forceRePaint();return true')
+        time.sleep(.2)
         device.shot(out/(name+'.png'))
         checks.append(name)
         (out/'checks.json').write_text(json.dumps(checks,indent=2)+'\n')
@@ -55,9 +58,12 @@ def review(device,out):
     def no_sheet():device.command('assert(not RemindersUI.current);return true')
     def sheet(kind):wait('return RemindersUI.current and RemindersUI.current.value.kind=='+json.dumps(kind)+' and "ready" or "pending"')
     def key(name):device.shell('input','keyevent',name)
+    def tap_action(text):
+        point=device.command('local b=assert(RemindersUI.current.dialog:getButtonById('+json.dumps(text)+'));return math.floor(b.dimen.x+b.dimen.w/2)..","..math.floor(b.dimen.y+b.dimen.h/2)')
+        x,y=point.split(',');device.shell('input','tap',x,y)
     def dismissed():wait('return not RemindersUI.current and "ready" or "pending"')
     def row(index):
-        device.command('local v=SettingsView.active;v.offset='+str((index-1)//4*4)+';v:paint();v.dialog.buttons['+str((index-1)%4+1)+'][1].callback();return true')
+        device.command('local v=SettingsView.active;local n=v.screen=="reminders-list" and 4 or 8;local i='+str(index)+';v.offset=math.floor((i-1)/n)*n;v:paint();v.dialog.buttons[(i-1)%n+1][1].callback();return true')
     def close_settings():
         device.command('while SettingsView.active do SettingsView.active:close() end;return true')
     def time_row(minute):
@@ -85,6 +91,7 @@ def review(device,out):
     device.shell('am','force-stop','org.koreader.launcher')
     device.shell('am','start','-n','org.koreader.launcher/.MainActivity')
     device.wait_companion()
+    device.command('Library.companion.setupLater();local w=top();if w and type(w.text)=="string" and w.text:find("BookSync Companion needs",1,true) then click("Later") end;return true')
     device.command('local t=top();if t and t.text then UI:close(t) end;while SettingsView.active do SettingsView.active:close() end;local ui=require("apps/reader/readerui").instance;if ui then ui:onClose() end;HomeHost.show();return true')
     clear_times()
     # Actual Settings drafts: changing a field never writes until Save.
@@ -93,7 +100,7 @@ def review(device,out):
     check('empty-and-eye-off')
     row(1);row(1);row(2);row(2)
     wait('return SettingsView.active.title=="Rest your eyes" and "ready" or "pending"')
-    check('interval-30-draft')
+    check('interval-30-draft','local v=SettingsView.active;local save=v.dialog:getButtonById("setting-3");assert(save and save.dimen.y+save.dimen.h<=Device.screen:getHeight());assert(not v.dialog:getButtonById("next"));return true')
     row(3)
     wait('return SettingsView.active.title=="Reminders" and "ready" or "pending"')
     invoke('list');device.command('for _,r in ipairs(Library._reminderResult.items) do if r.kind=="interval" then assert(r.enabled and r.intervalMinutes==30) end end;return true')
@@ -106,7 +113,7 @@ def review(device,out):
     row(3)
     wait('return SettingsView.active.title=="Add bedtime reminder" and "ready" or "pending"')
     row(2)
-    check('time-keyboard-docked','local input;for _,w in ipairs(UI._window_stack) do if w.widget.setInputText then input=w.widget end end;assert(input);local d=input._input_widget:getKeyboardDimen();assert(d.y+d.h==Device.screen:getHeight());input:setInputText("20:01");input.buttons[1][2].callback();return true')
+    check('time-keyboard-docked','local input=RemindersUI.timeDialog;assert(input and input.keypad_y+input.keypad_h==Device.screen:getHeight());for _,key in ipairs({"2","0","0","1"}) do input:getButtonById("key-"..key).callback() end;assert(input:getInputText()=="20:01");input:submit();return true')
     wait('return SettingsView.active.make()[2].text:find("20:01",1,true) and "ready" or "pending"')
     row(4)
     check('message-keyboard-docked','local input;for _,w in ipairs(UI._window_stack) do if w.widget.setInputText then input=w.widget end end;assert(input);local d=input._input_widget:getKeyboardDimen();assert(d.y+d.h==Device.screen:getHeight());input:setInputText("Time for a break");input.buttons[1][2].callback();return true')
@@ -133,7 +140,9 @@ def review(device,out):
     wait('return require("apps/reader/readerui").instance.document:getCurrentPage()~=Library._reminderPage and "ready" or "pending"')
     clear_times();clock(1);time_row(1203);tick();clock(60000);tick();sheet('time')
     for n in range(2):
-        key('KEYCODE_DPAD_DOWN');key('KEYCODE_ENTER');dismissed()
+        if n==0:tap_action('10 more minutes')
+        else:key('KEYCODE_DPAD_DOWN');key('KEYCODE_ENTER')
+        dismissed()
         clock(600000);tick();sheet('time');check('snooze-'+str(n+1))
     key('KEYCODE_BACK');dismissed();clear_times();clock(1)
     # Missed eligibility at the inclusive boundary, without waking or navigating.
@@ -151,7 +160,7 @@ def review(device,out):
     check('missed-expired-silent');clear_times();clock(1)
     interval(True);tick();read(19);no_sheet();read(1);sheet('interval')
     check('eye-rest-static-page','assert(RemindersUI.current.focus==1);assert(RemindersUI.current.value.message=="Rest your eyes. Look at something far away for 20 seconds.");return true')
-    key('KEYCODE_DPAD_RIGHT');dismissed();clock(1);tick();no_sheet()
+    tap_action('Done');dismissed();check('eye-rest-touch-done');clock(1);tick();no_sheet()
     # Five minutes outside reading resets nineteen minutes, before resumed input.
     read(19);device.command('RemindersUI.open();return true');tick();clock(300000);tick();close_settings();tick();read(1);no_sheet()
     check('five-minute-break-reset')

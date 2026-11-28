@@ -86,7 +86,11 @@ class BulkWorkTest {
         }
     }
 
-    @Test fun HomeVisibilityReportResumesBulkWorkWithoutRecordingABatteryMeasurement() {
+    @Test fun HomeVisibilityReportResumesBulkWorkWithoutRecordingABatteryMeasurement() = visibilityReport("home")
+    @Test fun EndSheetVisibilityReportResumesBulkWorkWithoutRecordingABatteryMeasurement() = visibilityReport("end-of-book")
+    @Test fun StorageVisibilityReportResumesBulkWorkWithoutRecordingABatteryMeasurement() = visibilityReport("storage")
+
+    private fun visibilityReport(reason:String) {
         val app=org.robolectric.RuntimeEnvironment.getApplication()
         org.robolectric.Shadows.shadowOf(app.getSystemService(android.os.PowerManager::class.java)).setIsInteractive(true)
         val prefs=Prefs(app);prefs.readingAt=System.currentTimeMillis();BulkWork.attach(app);BulkWork.changed()
@@ -98,7 +102,7 @@ class BulkWorkTest {
             val until=System.nanoTime()+2_000_000_000L
             while(!BulkWork.paused && System.nanoTime()<until) Thread.sleep(5)
             assertTrue(BulkWork.paused)
-            val report=android.content.Intent(Contract.STATS).putExtra("reason","home").putExtra("reading","0").putExtra("open","1").putExtra("visibility_only","1")
+            val report=android.content.Intent(Contract.STATS).putExtra("reason",reason).putExtra("reading","0").putExtra("open","1").putExtra("visibility_only","1")
             Reading.onStats(app,report);recorder.onStats(report)
             assertTrue(done.await(2,TimeUnit.SECONDS));assertFalse(Reading.now(app))
             val after=store.readableDatabase.rawQuery("SELECT count(*) FROM snap",null).use { it.moveToFirst();it.getLong(0) }

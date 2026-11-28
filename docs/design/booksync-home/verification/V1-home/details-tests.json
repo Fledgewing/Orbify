@@ -1,0 +1,12 @@
+{
+  "assertions": [
+    "local series compact card",
+    "finish unavailable pace is a dash",
+    "zero measured pages never show 0 pp/h"
+  ],
+  "screens": [
+    "series-local",
+    "end-of-book",
+    "end-empty"
+  ]
+}

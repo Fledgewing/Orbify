@@ -1,11 +1,12 @@
 -- SPDX-License-Identifier: AGPL-3.0-or-later
 -- Deliberate UI-facing services. Backends retain their existing behavior and ownership.
 -- Immediate foreground handoff; the five-minute measurement timer is not a UI gate.
-function Library.homeVisibilityChanged(visible)
+function Library.readingVisibilityChanged(reason)
     local ui=liveUI()
-    return Companion.send(Companion.ACTION.STATS,{reason=visible and "home" or "home-close",
+    return Companion.send(Companion.ACTION.STATS,{reason=reason,
         visibility_only="1",open=ui and ui.document and "1" or "0",reading=reading() and "1" or "0"})
 end
+function Library.homeVisibilityChanged(visible) return Library.readingVisibilityChanged(visible and "home" or "home-close") end
 Library.settings={}
 function Library.settings.read(key)
     -- Borrowed immutable values preserve layout array metadata; edits use complete settings intents.
@@ -175,7 +176,11 @@ function Library.preferences.seen()
     if S.recommended then S.recommended.unseen=0; saveSettings() end
 end
 
-function Library.isForeground() return not (Wifi and Wifi.state and Wifi.state().foreground==false) end
+function Library.isForeground()
+    local resumed=Jni.isResumed and Jni.isResumed()
+    if type(resumed)=="boolean" then return resumed end
+    return not (Wifi and Wifi.state and Wifi.state().foreground==false)
+end
 function Library.checkUpdate(why) return Updater.check(why) end
 function Library.updateStatus(text) return setUpdateStatus(text) end
 function Library.positionEnabled() return ReadingSync.on() end

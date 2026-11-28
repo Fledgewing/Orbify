@@ -24,6 +24,23 @@ return function(test,eq,ok,E,W,UI,Reader,Files)
         E.HomeHost.active=saved.home;E.PositionPrompt.current=saved.position
         R.transition=saved.transition;R.queued=saved.queued;R.closed=saved.closed
     end
+    test("reminder time draft: noon midnight and 24-hour boundaries",function()
+        eq(E.RemindersUI.timeDraft(0,true):text(),"12:00 AM")
+        eq(E.RemindersUI.timeDraft(720,true):text(),"12:00 PM")
+        eq(E.RemindersUI.timeDraft(1439,false):text(),"23:59")
+        local m=E.RemindersUI.timeDraft(1260,true);m:key("period");eq(m:text(),"09:00 AM")
+        m:select("hour");m:key("0");m:key("0");eq(m:text(),nil)
+        m:select("hour");m:key("1");m:key("3");eq(m:text(),nil)
+    end)
+    test("reminder time draft: field replacement backspace and invalid minutes stay local",function()
+        local m=E.RemindersUI.timeDraft(1260,false)
+        m:key("2");m:key("0");eq(m.field,"minute");m:key("5");m:key("9");eq(m:text(),"20:59")
+        m:key("backspace");eq(m:text(),"20:05");m:key("9");eq(m:text(),"20:59")
+        m:select("minute");m:key("6");m:key("0");eq(m:text(),nil)
+        m:key("backspace");m:key("1");eq(m:text(),nil)
+        m:key("backspace");m:key("backspace");eq(m:text(),nil)
+        m:key("x");eq(m.minute,"")
+    end)
     test("reminder gate: only the current typed local grant can draw",function() world(function(R,x)
         local draws=0
         ok(E.Gate.reminder(x.value,function() draws=draws+1 end));eq(draws,1)

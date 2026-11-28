@@ -61,7 +61,7 @@ object ChecklistUi {
         }
         return Ui.text(ctx, t, 18f, bold = true, color = if (done) Ui.PAPER else Ui.INK).apply {
             gravity = Gravity.CENTER
-            val s = Ui.dp(ctx, 30)
+            val s = Ui.dp(ctx, 35)
             layoutParams = LinearLayout.LayoutParams(s, s).apply { marginEnd = Ui.dp(ctx, 12) }
             background = GradientDrawable().apply {
                 cornerRadius = Ui.dp(ctx, 3).toFloat()
@@ -124,7 +124,7 @@ object ChecklistUi {
     /** One row (the same on the page, the prompt and the battery detail). */
     fun itemRow(ctx: Context, i: Checklist.Item, locked: Boolean, onVerb: (() -> Unit)?, onTap: (() -> Unit)?, mark: String? = null): LinearLayout {
         val verb = if (Checklist.verbShown(i, locked) && onVerb != null) {
-            Ui.button(ctx, i.row.verb!!, heightDp = VERB_DP, sp = 18f) { onVerb() }
+            Ui.button(ctx, i.row.verb!!, heightDp = VERB_DP, sp = CompanionStyle.ACTION) { onVerb() }
         } else null
         return Ui.row(ctx, label(i), sub(i), verb, onClick = if (locked && !i.row.pinFree) null else onTap, left = glyph(ctx, i.state, mark))
     }
@@ -139,21 +139,21 @@ object ChecklistUi {
     fun summaryCard(ctx: Context, s: Checklist.Summary, line: String = Checklist.summaryLine(s), onButton: (() -> Unit)?): LinearLayout =
         LinearLayout(ctx).apply {
             orientation = LinearLayout.VERTICAL
-            background = Ui.box(ctx, Ui.PAPER, strokeDp = 2, radiusDp = 6)
-            val p = Ui.dp(ctx, 10)
+            background = Ui.box(ctx, Ui.PAPER, strokeDp = 2, radiusDp = CompanionStyle.CARD_RADIUS)
+            val p = Ui.dp(ctx, 16)
             setPadding(p, p, p, p)
             val title = LinearLayout(ctx).apply {
                 orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.CENTER_VERTICAL
                 if (s !is Checklist.Summary.FirstRun && s !is Checklist.Summary.Walking) addView(glyph(ctx, Checklist.summaryState(s)))
-                addView(Ui.text(ctx, Checklist.summaryTitle(s), 22f, bold = true))
+                addView(Ui.text(ctx, Checklist.summaryTitle(s), CompanionStyle.SUMMARY_TYPE, bold = true))
             }
             addView(title)
-            addView(Ui.text(ctx, line, 17f, color = Ui.MID).apply { setPadding(0, Ui.dp(ctx, 2), 0, 0) })
+            addView(Ui.text(ctx, line, CompanionStyle.BODY, color = Ui.MID).apply { setPadding(0, Ui.dp(ctx, 2), 0, 0) })
             val b = Checklist.summaryButton(s)
             if (b != null && onButton != null) {
                 addView(Ui.gap(ctx, 8))
-                addView(Ui.button(ctx, b, solid = s !is Checklist.Summary.Walking, heightDp = VERB_DP, sp = 20f) { onButton() },
+                addView(Ui.button(ctx, b, solid = s !is Checklist.Summary.Walking, heightDp = CompanionStyle.FORM_TARGET, sp = CompanionStyle.FORM_ACTION) { onButton() },
                     LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
             }
             if (onButton != null && b == null) Ui.clickable(this, onButton)
@@ -237,7 +237,7 @@ object ChecklistUi {
 
     private fun plain(ctx: Context, s: String): TextView = Ui.text(ctx, s, 18f, bold = true).apply {
         gravity = Gravity.CENTER
-        val d = Ui.dp(ctx, 30)
+        val d = Ui.dp(ctx, 35)
         layoutParams = LinearLayout.LayoutParams(d, d).apply { marginEnd = Ui.dp(ctx, 12) }
     }
 
@@ -245,7 +245,7 @@ object ChecklistUi {
     fun statusCard(ctx: Context, s: Checklist.Summary, items: List<Checklist.Item>, onClick: () -> Unit): View =
         LinearLayout(ctx).apply {
             orientation = LinearLayout.VERTICAL
-            background = Ui.pressable(Ui.box(ctx, Ui.PAPER, strokeDp = 2, radiusDp = 6), Ui.box(ctx, Ui.PRESSED, strokeDp = 2, radiusDp = 6))
+            background = Ui.pressable(Ui.box(ctx, Ui.PAPER, strokeDp = 2, radiusDp = CompanionStyle.CARD_RADIUS), Ui.box(ctx, Ui.PRESSED, strokeDp = 2, radiusDp = CompanionStyle.CARD_RADIUS))
             val p = Ui.dp(ctx, 12)
             setPadding(p, p, p, p)
             minimumHeight = Ui.dp(ctx, Ui.ROW_DP)
@@ -333,10 +333,12 @@ class SetupDetailsActivity : EinkActivity() {
         root.addView(Ui.header(this, "Details", "‹ Setup") { finish() })
         val lines = crashes?.setup.orEmpty()
         lines.forEach { (k, v) -> root.addView(Ui.row(this, k, v)) }
-        root.addView(Ui.text(this, "Companion crashes", 24f))
-        root.addView(Ui.text(this, crashes?.text ?: "Loading crash summaries…", 18f))
+        root.addView(Ui.gap(this, 20))
+        root.addView(Ui.text(this, "Companion crashes", CompanionStyle.FORM_HEADING, bold = true).apply { typeface = CompanionStyle.serif })
+        root.addView(Ui.gap(this, 14))
+        root.addView(Ui.text(this, crashes?.text ?: "Loading crash summaries…", CompanionStyle.FORM_BODY))
         if (!Pin.locked(this)) {
-            if (crashes?.canClear == true) root.addView(Ui.button(this, "Clear crash summaries", heightDp = 56, sp = 20f) {
+            if (crashes?.canClear == true) root.addView(Ui.button(this, "Clear crash summaries", heightDp = CompanionStyle.FORM_TARGET, sp = CompanionStyle.FORM_ACTION, radiusDp = CompanionStyle.FORM_RADIUS) {
                 val ticket = ++generation
                 LibraryDiagnostics.clear(this) { ok ->
                     if (ticket == generation && !isFinishing && !isDestroyed) {
@@ -346,7 +348,7 @@ class SetupDetailsActivity : EinkActivity() {
             })
             if (crashes != null) {
                 root.addView(Ui.gap(this, 12))
-                root.addView(Ui.button(this, "Copy for support", heightDp = 56, sp = 20f) {
+                root.addView(Ui.button(this, "Copy for support", heightDp = CompanionStyle.FORM_TARGET, sp = CompanionStyle.FORM_ACTION, radiusDp = CompanionStyle.FORM_RADIUS) {
                     val text = SetupDetails.copyText(BuildConfig.VERSION_NAME, lines + ("Companion crashes" to crashes.text))
                     (getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).setPrimaryClip(ClipData.newPlainText("BookSync setup details", text))
                     OLog.i("setup: details copied for support")

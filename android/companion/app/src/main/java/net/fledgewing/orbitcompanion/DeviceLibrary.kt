@@ -6,7 +6,14 @@ import java.security.MessageDigest
 
 /** Device files have an identity even before a server is configured. Only the companion
  * scans and parses native sidecars; LibraryReadModel still bounds every published window. */
-class DeviceLibrary(private val roots: List<File>) : ServerAdapter {
+class DeviceLibrary(
+    private val roots: List<File>,
+    private val cache: File? = null,
+    private val clock: () -> Long = { System.currentTimeMillis()/1000 },
+    private val bookStats: (Map<*, *>) -> Map<String, Any?> = { entry ->
+        cache?.let { ReaderBookStats.read(it, entry, now=clock()) } ?: mapOf("available" to false)
+    },
+) : ServerAdapter {
     override val id = "device"
     companion object {
         const val OWNER = "device-local"
@@ -24,10 +31,12 @@ class DeviceLibrary(private val roots: List<File>) : ServerAdapter {
             }.filter { it.isFile && it.extension.lowercase() in setOf("epub","pdf","mobi","azw","azw3","fb2","djvu","cbz","cbr","txt") && Places.inside(it,listOf(root)) != null }
         }.distinctBy { it.canonicalPath }
     }
-    private val books by lazy { files(roots).map(::book).toList() }
+    private val firstSeen by lazy { DeviceLibraryIndex(cache?.let { File(it,"device-library.properties") },clock) }
+    private val covers by lazy { cache?.let { LocalBookCovers(File(it,"local-covers")) } }
+    private val books by lazy { files(roots).map { book(it) }.toList().also { firstSeen.rememberSeries(it);firstSeen.flush() } }
     private fun sidecar(file: File) = File(file.parentFile,"${file.nameWithoutExtension}.sdr")
-    private fun book(file: File): Map<String,Any?> {
-        BulkWork.checkpoint()
+    private fun book(file: File, background: Boolean = true): Map<String,Any?> {
+        if(background) BulkWork.checkpoint()
         val metadata=File(sidecar(file),"metadata.${file.extension}.lua")
         val data=metadata(file, roots)
         val props=data?.get("doc_props") as? Map<*,*>
@@ -39,7 +48,7 @@ class DeviceLibrary(private val roots: List<File>) : ServerAdapter {
         return mapOf("key" to "device:book:$hash","title" to LuaValue.boundedText((props?.get("title") as? String)?.let(LuaValue::utf8) ?: file.nameWithoutExtension,256),
             "series_key" to (props?.get("series") as? String), "series_position" to props?.get("series_index"),
             "authors" to listOfNotNull((props?.get("authors") as? String)?.let { LuaValue.boundedText(LuaValue.utf8(it),256) }),
-            "local_path" to LuaValue.str(file.canonicalPath),"on_device" to true,"status" to status,"progress" to fraction?.times(100),
+            "added" to firstSeen.added(file),"md5" to data?.get("partial_md5_checksum"),"local_path" to LuaValue.str(file.canonicalPath),"on_device" to true,"status" to status,"progress" to fraction?.times(100),
             "last_read" to (metadata.lastModified()/1000).takeIf { metadata.isFile },"cover_path" to cover?.path?.let(LuaValue::str),
             "series" to listOfNotNull(props?.get("series")),"series_position" to props?.get("series_index"),
             "formats" to listOf(file.extension.lowercase()),"available" to mapOf("cover" to (cover!=null)),"downloadable" to false)
@@ -62,7 +71,7 @@ class DeviceLibrary(private val roots: List<File>) : ServerAdapter {
             "status" to mapOf("read" to true,"write" to false))
         if(op in setOf("lists","collections")) return rows(emptyList<Any>())
         if(op=="sources") {
-            val definitions=listOf(Triple("device","On this device",books.size),Triple("reading","Reading now",books.count { it["status"]=="reading" }),Triple("finished","All finished",books.count { it["status"]=="finished" }),Triple("pickup","Pick back up",(books.count { it["status"] in setOf("reading","rereading") }-1).coerceAtLeast(0)))
+            val definitions=listOf(Triple("device","On this device",books.size),Triple("recent","Recently added",books.size),Triple("reading","Reading now",books.count { it["status"]=="reading" }),Triple("finished","All finished",books.count { it["status"]=="finished" }),Triple("pickup","Pick back up",(books.count { it["status"] in setOf("reading","rereading") }-1).coerceAtLeast(0)))
             val offset=((request["offset"] as? Number)?.toInt() ?: 0).coerceAtLeast(0)
             val limit=((request["limit"] as? Number)?.toInt() ?: 6).coerceIn(1,6)
             val category=request["category"] as? String ?: "builtin"
@@ -107,15 +116,23 @@ class DeviceLibrary(private val roots: List<File>) : ServerAdapter {
                 "row_count" to if(next==null) 1 else 2,"freshness" to fresh)
         }
         if(op in setOf("book","reader","progress","status","cover")) {
-            val row=books.firstOrNull { if(op=="reader") it["local_path"]==request["path"] else it["key"]==request["key"] } ?: return rows(emptyList<Any>())
+            // An explicit in-book panel needs one file, not a library scan waiting for
+            // reading to end. All parsing/SQL still stays on the companion worker.
+            val row=if(op=="reader") {
+                val file=(request["path"] as? String)?.let(LuaValue::utf8)?.let { Places.inside(it,roots) }
+                    ?.takeIf { it.isFile } ?: return rows(emptyList<Any>())
+                book(file,background=false).also { firstSeen.flush() }
+            } else books.firstOrNull { it["key"]==request["key"] } ?: return rows(emptyList<Any>())
             return when(op) {
-                "cover" -> mapOf("local_path" to row["cover_path"],"freshness" to fresh)
+                "cover" -> mapOf("local_path" to (covers?.cover(File(LuaValue.utf8(row["local_path"] as String)),
+                    (row["cover_path"] as? String)?.let { File(LuaValue.utf8(it)) })?.path?.let(LuaValue::str) ?: row["cover_path"]),"freshness" to fresh)
                 "progress","status" -> row + mapOf("freshness" to fresh)
                 "reader" -> {
                     val current=(request["native_progress"] as? Number)?.toDouble()?.takeIf { it.isFinite() && it in 0.0..1.0 }
-                    rows(listOf(if(current==null) row else row+mapOf("progress" to current*100,"progress_origin" to "local-reader")))
+                    val enriched=row+mapOf("series_total" to firstSeen.seriesCount(row["series_key"] as? String),"stats" to bookStats(mapOf("md5" to row["md5"],"path" to row["local_path"])))
+                    rows(listOf(if(current==null) enriched else enriched+mapOf("progress" to current*100,"progress_origin" to "local-reader")))
                 }
-                else -> rows(listOf(row))
+                else -> rows(listOf(row+mapOf("stats" to bookStats(mapOf("md5" to row["md5"],"path" to row["local_path"])))))
             }
         }
         if(op !in setOf("window","counts","facets","groups")) return rows(emptyList<Any>())
@@ -124,8 +141,8 @@ class DeviceLibrary(private val roots: List<File>) : ServerAdapter {
         val source=request["source"]
         val context=source as? Map<*,*>
         val sourceFilter=if(context?.get("kind")=="author") mapOf("author" to listOf(context["key"])) else if(context?.get("kind")=="series") mapOf("series" to listOf(context["key"])) else when(source) { "reading","pick-back-up" -> mapOf("show" to "reading"); "finished" -> mapOf("show" to "finished"); "want-to-read" -> mapOf("wtr" to true); else -> emptyMap() }
-        var selected=if(source !in setOf("all","library/all","on-device","reading","pick-back-up","finished","search") && context?.get("kind") !in setOf("author","series")) emptyList() else books.filter { LibraryFilter.matches(it,sourceFilter) && LibraryFilter.matches(it,filter) }
-        val sort=if(filter["sort"]==null && source in setOf("reading","pick-back-up")) filter+mapOf("sort" to "last","dir" to if(source=="pick-back-up") "asc" else "desc") else filter
+        var selected=if(source !in setOf("all","library/all","on-device","reading","pick-back-up","finished","search","recently-added") && context?.get("kind") !in setOf("author","series")) emptyList() else books.filter { LibraryFilter.matches(it,sourceFilter) && LibraryFilter.matches(it,filter) }
+        val sort=if(filter["sort"]==null && source in setOf("reading","pick-back-up")) filter+mapOf("sort" to "last","dir" to if(source=="pick-back-up") "asc" else "desc") else if(filter["sort"]==null && source=="recently-added") filter+mapOf("sort" to "added","dir" to "desc") else filter
         selected=selected.sortedWith(LibraryFilter.comparator(sort))
         if((request["exclude_current"]==true || source=="pick-back-up") && source in setOf("reading","pick-back-up")) {
             val current=books.filter { LibraryFilter.matches(it,mapOf("show" to "reading")) }.minWithOrNull(LibraryFilter.comparator(mapOf("sort" to "last","dir" to "desc")))?.get("key")

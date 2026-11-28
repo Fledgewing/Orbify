@@ -45,6 +45,7 @@ local UIManager = {
         for i = #W.shown, 1, -1 do if W.shown[i] == w then table.remove(W.shown, i) end end
         if w and w.dismiss_callback then w.dismiss_callback() end
     end,
+    handleInput = function(_, ...) return W.handle_input(...) end,
     forceRePaint = function() end,
     setDirty = function() end,
     -- Android: Device:canRestart is no, so a restart is quit + the companion's RELAUNCH.
@@ -135,6 +136,10 @@ local function class(base)
 end
 local Widget = class()
 Widget.__index = Widget
+function Widget:getSize()
+    if self.dimen then return self.dimen end
+    return {w=self.width or self.max_width or 20,h=self.height or 20}
+end
 
 -- A tiny JNI: objects are Lua tables, method ids are names.
 local env_fns = {
@@ -447,12 +452,12 @@ package.preload["datastorage"] = function() return { getSettingsDir = function()
 -- The rest of KOReader's widgets and ui helpers the sheets build with: stand-ins that keep their
 -- arguments (no layout, no drawing).
 local function plain(_, o) return o or {} end
-preload.device.screen = { getWidth = function() return 600 end, getHeight = function() return 800 end }
+preload.device.screen = { scaleBySize=function(_,n) return n end, getWidth = function() return 600 end, getHeight = function() return 800 end }
 package.preload["ui/geometry"] = function() return { new = plain } end
 package.preload["ui/gesturerange"] = function() return { new = plain } end
 package.preload["ui/font"] = function() return { getFace = function() return {} end } end
 package.preload["ui/size"] = function() return { padding = { large = 10 }, radius = { button = 0 }, line = { thick = 3 } } end
-package.preload["ffi/blitbuffer"] = function() return { COLOR_BLACK = 0, COLOR_WHITE = 1 } end
+package.preload["ffi/blitbuffer"] = function() return { Color8=function(n) return n end, COLOR_BLACK = 0, COLOR_WHITE = 1 } end
 table.insert(package.loaders, 2, function(name)
     if type(name) == "string" and name:match("^ui/widget/") and not package.preload[name] then
         return function() return Widget:extend{} end
@@ -869,7 +874,12 @@ test("menu is its own Tools entry, not inside the plugin's menu, and builds", fu
     ok(#items.bookorbit.sub_item_table == 0, "plugin menu untouched")
     local entry = items.orbit_android
     ok(entry and entry.text == "BookSync" and entry.sorting_hint == "tools", "Tools entry")
-    local sub = entry.sub_item_table_func()
+    local opened,closed=false,false
+    m.showSettings=function() opened=true end
+    entry.callback({closeMenu=function() closed=true end})
+    ok(opened and closed,"Tools routes into the owned settings page")
+    eq(entry.sub_item_table_func,nil,"BookSync has no stock settings submenu")
+    local sub = m:menuItems()
     ok(#sub >= 9, "items " .. #sub)
     local titles = {}
     for _, it in ipairs(sub) do if it.text then titles[it.text] = true end end
@@ -3321,6 +3331,25 @@ test("main-loop diagnostics: slow callbacks log, preserve returns/errors and can
     run(0.1)
 end)
 
+test("main-loop fatal: original Lua traceback is logged, persisted and rethrown", function()
+    local write,dir=RE.Store.writeFile,RE.Store.dir
+    local path,saved
+    RE.Store.dir=function() return "/fixture" end
+    RE.Store.writeFile=function(p,text) path,saved=p,text;return true end
+    W.handle_input=function(...) return nil,false,select("#",...) end
+    local a,b,c=UIManager:handleInput("x",nil)
+    eq(a,nil);eq(b,false);eq(c,2)
+    W.handle_input=function() error("fixture main loop cause") end
+    local success,err=pcall(UIManager.handleInput,UIManager)
+    eq(success,false);ok(err:find("fixture main loop cause",1,true));ok(err:find("stack traceback:",1,true))
+    eq(path,"/fixture/koreader-crash.txt");ok(saved:find("fixture main loop cause",1,true));ok(#saved<=4096)
+    RE.Store.writeFile=function() error("unwritable diagnostics") end
+    success,err=pcall(UIManager.handleInput,UIManager)
+    eq(success,false);ok(err:find("fixture main loop cause",1,true),"diagnostic failure preserves cause")
+    RE.Store.writeFile,RE.Store.dir=write,dir
+    W.handle_input=nil
+end)
+
 test("sqlite stress: the verdict line", function()
     local line = RE.SqliteStress.verdict({ reads = 900, errors = 0, busy = 3, max_busy_ms = 41 },
         { writes = 1200, errors = 0, max_wait_ms = 12, integrity = "ok" })
@@ -3754,7 +3783,7 @@ test("reader surface: cold bounded SQLite snapshots work without allowing backgr
     st:run("CREATE TABLE library_views(owner TEXT,request TEXT,body BLOB,at INTEGER,PRIMARY KEY(owner,request))")
     local owner,reading,decode=RE.LibraryAdapter.owner,RE.reading,RE.Cache.decode
     RE.LibraryAdapter.owner=function() return DBFX.owner end;RE.reading=function() return true end
-    local request=RE.Cache.encode({op="reader",path="/books/cold.epub",limit=1,bytes=16384})
+    local request=RE.Cache.encode({op="reader",path="/books/cold.epub",projection=2,limit=1,bytes=16384})
     local body=RE.Cache.encode({items={{key="cold-book",title="Cold reader"}}})
     st:run("INSERT INTO library_views VALUES(?,?,?,1)",DBFX.owner,request,body)
     local success,err=pcall(function() withStore(dir,function()

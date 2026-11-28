@@ -11,9 +11,20 @@ function BatteryWidgetPlan.display(data)
         narrow_estimate="Learning · usual use",page_estimate="Learning · estimate available after measured use",
         reading="— Needs measured reading",standby="— Needs measured standby"}
 end
+-- Short presentation-only forms; unknown estimates stay unknown.
+function BatteryWidgetPlan.compact(value,kind,narrow)
+    value=tostring(value or "—")
+    if value:find("Learning",1,true) then return narrow and "Learning usage" or "Learning your usage" end
+    if value:lower():find("measured",1,true) or value:find("Needs 24",1,true) or ((kind=="reading_rate" or kind=="standby_rate") and value:find("—",1,true)) then
+        return ({reading="Reading —",standby="Standby —",reading_rate="Reading · —",standby_rate="Standby · —",used_week="—"})[kind] or "—"
+    end
+    if value:find("No charges",1,true) then return "No charges yet" end
+    return value
+end
 function BatteryWidgetPlan.widget(data,w,h)
     local d=BatteryWidgetPlan.display(data)
-    local lines={w == 1 and d.narrow_estimate or d.estimate,d.reading,d.standby}
+    local compact=BatteryWidgetPlan.compact
+    local lines={compact(w == 1 and d.narrow_estimate or d.estimate,"estimate",w==1),compact(d.reading,"reading",w==1),compact(d.standby,"standby",w==1)}
     if w>1 and h>1 then
         lines[#lines+1]=d.reading_rate or "— Needs measured reading"
         lines[#lines+1]=d.standby_rate or "— Needs measured standby"

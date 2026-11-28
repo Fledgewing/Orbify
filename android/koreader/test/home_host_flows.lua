@@ -1,19 +1,29 @@
 -- SPDX-License-Identifier: AGPL-3.0-or-later
 return function(test,eq,ok,E,W,Widget)
+    local function find(node,key,value)
+        if type(node)~="table" then return end
+        if node[key]==value then return node end
+        for _,child in ipairs(node) do local match=find(child,key,value);if match then return match end end
+    end
     local function withHost(fn)
         local saved={adapter=E.LibraryAdapter,ui=E.HomeWidgets._ui,layout=E.S.home_layout,screen=E.S.home_screen,
-            problem=E.Companion.workerProblem,scale=E.Device.screen.scaleBySize,height=E.Device.screen.getHeight,shown=W.shown,free=Widget.free,paint=Widget.paintTo,require=E.require,codec=E.Library.layout.codec,news=E.S.news_012_pending,path=E.Library.layout.path,loaded=E.Library.layout.loaded,save=E.HomeEditor.save,liveUI=E.liveUI,pin=E.Shared.pin_locked,refresh=E.Shared.refresh,wifiState=E.Wifi.state,eobSheet=E.FinishUI.sheet,open=E.Library.open,panel=E.ReaderPanel,readFile=E.Store.readFile,writeFile=E.Store.writeFile}
+            width=E.Device.screen.getWidth,problem=E.Companion.workerProblem,scale=E.Device.screen.scaleBySize,height=E.Device.screen.getHeight,shown=W.shown,free=Widget.free,paint=Widget.paintTo,require=E.require,codec=E.Library.layout.codec,news=E.S.news_012_pending,path=E.Library.layout.path,loaded=E.Library.layout.loaded,save=E.HomeEditor.save,liveUI=E.liveUI,pin=E.Shared.pin_locked,refresh=E.Shared.refresh,wifiState=E.Wifi.state,eobSheet=E.FinishUI.sheet,open=E.Library.open,panel=E.ReaderPanel,readFile=E.Store.readFile,writeFile=E.Store.writeFile}
         local batches,reads={},{}
+        E.Device.screen.getWidth=function() return 702 end
         E.Device.screen.scaleBySize=function(_,n) return n end
         E.Companion.workerProblem=function() end
         Widget.free=function() end
-        local U={Font={getFace=function() return {} end},BB={COLOR_BLACK=0,COLOR_WHITE=1,COLOR_DARK_GRAY=.3,COLOR_GRAY=.5,COLOR_LIGHT_GRAY=.8}}
+        local U={Font={getFace=function() return {} end},BB={Color8=function(n) return n end,COLOR_BLACK=0,COLOR_WHITE=1,COLOR_DARK_GRAY=.3,COLOR_GRAY=.5,COLOR_LIGHT_GRAY=.8}}
         for _,k in ipairs({"Overlap","Frame","Text","Button","Progress"}) do U[k]=Widget:extend{} end
         U.Text.getSize=function(self) return {w=self.max_width or 0,h=20} end
         Widget.paintTo=function(self,bb,x,y)
             for _,child in ipairs(self) do if child.paintTo then child:paintTo(bb,x,y) end end
         end
         E.require=function(name)
+            if name=="ui/font" then return U.Font end
+            if name=="ui/widget/container/framecontainer" then return U.Frame end
+            if name=="ui/widget/overlapgroup" then return U.Overlap end
+            if name=="ui/widget/progresswidget" then return U.Progress end
             if name=="ui/widget/textwidget" then return U.Text end
             if name=="ffi/blitbuffer" then return U.BB end
             if name=="ui/size" then return {padding={buttontable=0}} end
@@ -51,6 +61,7 @@ return function(test,eq,ok,E,W,Widget)
                 for i=1,24 do d.hour_levels[i]=0; d.hour_intensity[i]=0 end
                 return d,#E.Cache.encode(d)
             end
+            if a.op == "counts" then return {total=2,freshness={saved=true}},80 end
             if a.op == "facets" then return {items=a.field and {{value="unread",label="Unread",count=2}} or {},total=2,freshness={saved=true}},150 end
             if a.op == "lists" then return {items={{key="opaque-list",title="Favourites",count=3}},freshness={saved=true}},150 end
             return {items={{key="opaque-book",title="The Moon",authors={"A"},progress=25,local_path="/fixture/book.epub"}},freshness={saved=true}},200
@@ -75,7 +86,7 @@ return function(test,eq,ok,E,W,Widget)
         E.Shared.pin_locked,E.Shared.refresh=saved.pin,saved.refresh
         E.Store.readFile,E.Store.writeFile=saved.readFile,saved.writeFile
         E.Companion.workerProblem=saved.problem
-        E.Device.screen.getHeight=saved.height
+        E.Device.screen.getHeight=saved.height;E.Device.screen.getWidth=saved.width
         ok(success,err)
     end
     test("owned card status: Undo and dismiss release one intent and stale replies never show",function() withHost(function()
@@ -274,10 +285,10 @@ return function(test,eq,ok,E,W,Widget)
         withHost(function()
             local h=E.HomeHost.create(); E.HomeHost.active=h; W.shown={h}
             h:turn(2); local index=h.index
-            eq(h[1][1][1].text,"Stats")
-            ok(h[1][1][1].max_width<=h.dimen.w-220,"page title leaves room for Edit and Close")
+            eq(find(h,"text","Stats").text,"Stats")
+            ok(find(h,"text","Stats").max_width<=h.dimen.w-220,"page title leaves room for Search and menu")
             h:showList("Want to read","want-to-read")
-            h:onClose(); eq(h.index,index); eq(h[1][1][1].text,"Stats")
+            h:onClose(); eq(h.index,index); eq(find(h,"text","Stats").text,"Stats")
             local old=E.state.module
             local opened=0
             E.state.module={showSettings=function() opened=opened+1 end}
@@ -336,7 +347,7 @@ return function(test,eq,ok,E,W,Widget)
             end
         end)
     end)
-    test("Home Settings: standalone menu uses native tab rows and the current PIN policy",function()
+    test("Home Settings: owned root preserves the current PIN policy",function()
         withHost(function()
             local owner=setmetatable({}, {__index=E.OrbitAndroid})
             local normal,locked=0,0
@@ -345,10 +356,10 @@ return function(test,eq,ok,E,W,Widget)
             E.Shared.refresh=function() end
             E.Shared.pin_locked=false
             local menu=owner:showSettings()
-            eq(menu.tab_item_table[1][1].text,"Your server"); eq(#menu.tab_item_table[1],1); eq(normal,1); eq(locked,0)
+            eq(menu.make()[1].text,"Your server"); eq(#menu.make(),1); eq(normal,1); eq(locked,0)
             E.Shared.pin_locked=true
             menu=owner:showSettings()
-            eq(menu.tab_item_table[1][1].text,"Locked"); eq(normal,2); eq(locked,1)
+            eq(menu.make()[1].text,"Locked"); eq(normal,2); eq(locked,1)
         end)
     end)
     test("Home design: wide cover shelves read columns rather than a text-row limit",function()
@@ -368,6 +379,7 @@ return function(test,eq,ok,E,W,Widget)
     end)
     test("Home card rows: paging consumes exactly the visible books",function()
         withHost(function()
+            E.Device.screen.getHeight=function() return 936 end -- Match the 702-unit M8C reference viewport.
             local read=E.LibraryAdapter.read
             E.LibraryAdapter.read=function(raw)
                 local args=E.Cache.decode(raw)
@@ -381,10 +393,10 @@ return function(test,eq,ok,E,W,Widget)
             end
             local h=E.HomeHost.create();E.HomeHost.active=h
             h:showList("Library","library/all")
-            eq(h.list_limit,5);eq(#h.list_result.items,5)
-            eq(h.list_result.items[1].title,"Book 1");eq(h.list_result.items[5].title,"Book 5")
+            eq(h.list_limit,15);eq(#h.list_result.items,15)
+            eq(h.list_result.items[1].title,"Book 1");eq(h.list_result.items[15].title,"Book 15")
             h:listPage(1)
-            eq(h.list_result.items[1].title,"Book 6");eq(h.list_result.items[5].title,"Book 10")
+            eq(h.list_result.items[1].title,"Book 16");eq(h.list_result.items[15].title,"Book 30")
             h:listPage(-1);eq(h.list_result.items[1].title,"Book 1")
         end)
     end)
@@ -422,7 +434,7 @@ return function(test,eq,ok,E,W,Widget)
             local success,err=pcall(function()
                 local h=E.HomeHost.create(); E.HomeHost.active=h
                 local canvas=h[1][1]
-                local boundary=canvas[6] -- header, Close, Search, menu, Edit, first widget
+                local boundary=find(canvas,"instance","resume")
                 local failed=boundary[1]
                 local Frame=E.HomeWidgets.ui().Frame
                 Frame.paintTo=function() end
@@ -488,14 +500,10 @@ return function(test,eq,ok,E,W,Widget)
             E.S.home_layout=nil
             local h=E.HomeHost.create(); E.HomeHost.active=h; W.shown={h}
             h:onNext(); h:onNext()
-            local card=h[1][1][7][1][1]
-            local level,estimate,glyph
-            for _,child in ipairs(card) do
-                if child.text=="78%" then level=true end
-                if child.text=="≈ 2 d 6 h at your usual use" then estimate=true end
-                if child.percentage==.78 then glyph=true end
-            end
-            ok(level and estimate and glyph)
+            local card=find(h,"instance","battery")[1][1]
+            ok(find(card,"text","78%"))
+            ok(find(card,"text","≈ 2 d 6 h at your usual use"))
+            ok(find(card,"percentage",.78))
             local count=0
             for _,a in ipairs(reads) do if a.op=="battery" then count=count+1 end end
             eq(count,1); eq(h.metrics.roundTrips,1); eq(h.metrics.spawns,0); eq(h.metrics.network,0)
@@ -527,7 +535,7 @@ return function(test,eq,ok,E,W,Widget)
             local h=E.HomeHost.create(); E.HomeHost.active=h; W.shown={h}
             E.Device.screen.getHeight=oldHeight
             h:onNext()
-            local tile=h[1][1][6][1][1]
+            local tile=find(h,"instance","summary")[1][1]
             local links={}; for _,child in ipairs(tile) do if child.callback then links[child.text]=child end end
             ok(links["2 on device ›"]); ok(links["Authors ›"]); ok(links["Series ›"]); ok(links["Collections ›"])
             for _,child in ipairs(tile) do if child.height then
@@ -543,9 +551,7 @@ return function(test,eq,ok,E,W,Widget)
             local h=E.HomeHost.create(); E.HomeHost.active=h; W.shown={h}
             h:dispatch("all",nil,E.S.home_layout.pages[1].placements[5])
             eq(h.filter.model.source,"recently-added")
-            local canvas=h[1][1]
-            eq(canvas[3].text,"Search"); eq(canvas[4].text,"Filter")
-            canvas[4].callback()
+            h.filter:header(h.list_result.total).callback()
             local filter=h.filter
             ok(filter.alive)
             filter.dialog.buttons[1][1].callback() -- Show picker
@@ -577,7 +583,7 @@ return function(test,eq,ok,E,W,Widget)
             local input=W.shown[#W.shown]; input.buttons[1][2].callback()
             eq(h.filter.model.source,"search"); eq(h.filter.model.query.q,"Moon")
             eq(h.filter.model.query.sort,"match")
-            eq(h[1][1][4].text,"Filter")
+            ok(h.filter:header(h.list_result.total).callback)
         end)
     end)
     test("Home wiring: filter dialogs over Home keep cached reads available above an open book",function()
@@ -718,23 +724,12 @@ return function(test,eq,ok,E,W,Widget)
         end)
     end)
 
-    test("Settings labels: multi-line choices reuse the measured TextBox label",function()
+    test("Settings labels: multi-line choices retain a title and explanatory row",function()
         withHost(function()
-            local freed=0
-            local button={label_container={dimen={w=480,h=96}},label_widget={fgcolor=0,free=function() freed=freed+1 end}}
-            local require=E.require
-            E.require=function(name)
-                if name=="ui/widget/buttondialog" then return Widget:extend{
-                    getButtonById=function(_,id) if id=="channel" then return button end end,moveFocusTo=function() end} end
-                if name=="ui/widget/textboxwidget" then return Widget:extend{} end
-                if name=="ui/font" then return {getFace=function(_,_,size) return {size=size} end} end
-                return require(name)
-            end
             local view=E.SettingsView.open("Channel",function() return {{id="channel",text="Stable\nTested releases only",height=96}} end,"settings-updates")
-            eq(freed,1);eq(button.label_widget.text,"Stable\nTested releases only")
-            eq(button.label_widget.width,480);eq(button.label_widget.height,96)
-            eq(button.label_container[1],button.label_widget)
-            view.alive=false
+            local row=view.dialog:getButtonById("channel")
+            eq(row.text,"Stable")
+            view:close()
         end)
     end)
     test("Home host: a covered event redraws after reveal without reading on paint",function()
@@ -762,12 +757,13 @@ return function(test,eq,ok,E,W,Widget)
         withHost(function(_,_,U)
             U.Text.getSize=function() return {w=100,h=60} end
             local cover=E.HomeWidgets.cover
-            local y,height
-            E.HomeWidgets.cover=function(_,_,_,top,_,h) y,height=top,h end
+            local y,height,right
+            E.HomeWidgets.cover=function(_,_,x,top,w,h) y,height,right=top,h,x+w end
             local snapshot=E.HomeHostPlan.snapshot({items={{key="fixture",title="Fixture"}},freshness={saved=true}})
-            E.HomeWidgets.card({widget="continue-reading",w=4,h=2,settings={}},snapshot,function() end,{w=600,h=280})
+            local card=E.HomeWidgets.card({widget="continue-reading",w=4,h=2,settings={}},snapshot,function() end,{w=600,h=280})
             E.HomeWidgets.cover=cover
-            ok(y>=14+60+4,"cover border must not strike through the heading")
+            ok(y>=14,"cover keeps its top inset")
+            ok(find(card,"text","Fixture").overlap_offset[1]>right,"title and cover occupy separate columns")
             ok(y+height<=278-14,"cover stays within the tile")
         end)
     end)
@@ -775,6 +771,7 @@ return function(test,eq,ok,E,W,Widget)
         withHost(function(_,_,U)
             local b={key="opaque",title="The Moon",authors={"A"},progress=25,local_path="book.epub",series_key="series-key",
                 series_line="Moon · Book 2",time_left="50 m left",finish_forecast="Done by Tuesday"}
+            b.added_label="Yesterday";eq(E.HomeWidgets.caption({cap=1},b),"Yesterday","worker-provided date caption")
             local snap=E.HomeHostPlan.snapshot({items={b},freshness={saved=true}})
             local actions={}
             local card=E.HomeWidgets.card({widget="continue-reading",w=4,h=4,settings={}},snap,
@@ -1007,13 +1004,13 @@ return function(test,eq,ok,E,W,Widget)
             local success,err=pcall(function()
                 local h=E.HomeHost.create(); E.HomeHost.active=h
                 local canvas=h[1][1]
-                eq(canvas[2].text,"Not signed in · Sign in"); canvas[2].callback(); eq(kind,"summary")
+                local setup=find(canvas,"text","Not signed in · Sign in");eq(setup.text,"Not signed in · Sign in"); setup.callback(); eq(kind,"summary")
                 for _,control in ipairs(canvas) do if control.text=="Search" then
-                    ok(canvas[2].overlap_offset[1]>=control.overlap_offset[1]+control.width,"setup subtitle does not overlap Search")
+                    ok(setup.overlap_offset[1]+setup.width<=control.overlap_offset[1],"setup subtitle does not overlap Search")
                 end end
                 state={signedIn=true,sync={available=false},opds={available=false}}
                 h:rebuild(); canvas=h[1][1]
-                eq(canvas[2].text,"No sync login · Set up"); canvas[2].callback(); eq(kind,"sync")
+                local setup=find(canvas,"text","No sync login · Set up");eq(setup.text,"No sync login · Set up"); setup.callback(); eq(kind,"sync")
                 eq(h.changed_rects[1].y,0); ok(h.changed_rects[1].h>0)
                 h:dispatch("book",{key="remote-only"})
                 eq(h.download_prompt.title,"No OPDS login, so it can't download")
@@ -1021,7 +1018,7 @@ return function(test,eq,ok,E,W,Widget)
                 state={signedIn=true,sync={available=true},opds={available=true}}
                 h:rebuild()
                 eq(h.account_status,nil)
-                ok(h.changed_rects[1].h>=104 and h.changed_rects[1].h<h.dimen.h,"removing setup action invalidates its header region")
+                ok(h.changed_rects[1].h>=76 and h.changed_rects[1].h<h.dimen.h,"removing setup action invalidates its header region")
             end)
             E.LibraryAdapter.read,E.AccountView.open=read,open
             ok(success,err)

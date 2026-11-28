@@ -13,6 +13,11 @@ function HomeWidgets.ui()
     u.Font=require("ui/font"); u.BB=require("ffi/blitbuffer")
     HomeWidgets._ui=u; return u
 end
+function HomeWidgets.kit()
+    local K=BookSyncUI.new(HomeWidgets.kitScale)
+    K.icons.filter=true;K.icons.clouddl=true -- Home's list/selection decoration extends the owned icon set.
+    return K
+end
 function HomeWidgets.canvas(w,h)
     return HomeWidgets.ui().Overlap:new{dimen={w=w,h=h},allow_mirroring=false}
 end
@@ -32,9 +37,14 @@ end
 -- belongs to this node: freeing/rebuilding the host cancels late delivery.
 function HomeWidgets.cover(canvas,book,x,y,w,h,ink)
     local u=HomeWidgets.ui()
-    local placeholder=HomeWidgets.canvas(w,h)
-    HomeWidgets.text(placeholder,"BOOK",4,8,w-8,12,ink,true)
-    local node=u.Frame:new{padding=0,margin=0,bordersize=1,placeholder}
+    if HomeWidgets.preview then
+        local K=HomeWidgets.kit()
+        local child=book.cover_path and require("ui/widget/imagewidget"):new{file=book.cover_path,width=w,height=h,scale_factor=0}
+            or K.cover{w=w,h=h,title=book.title,author=book.authors and book.authors[1]}
+        return HomeWidgets.put(canvas,u.Frame:new{padding=0,margin=0,bordersize=ink and K.px(2) or 1,color=ink and u.BB.COLOR_WHITE or u.BB.COLOR_BLACK,radius=K.px(3),child},x,y)
+    end
+    local placeholder=BookSyncUI.new().cover{w=w,h=h,title=book.title,author=book.authors and book.authors[1]}
+    local node=u.Frame:new{coverExpected=type(book.cover_path)=="string",padding=0,margin=0,bordersize=ink and HomeWidgets.kit().px(2) or 1,color=ink and u.BB.COLOR_WHITE or u.BB.COLOR_BLACK,radius=HomeWidgets.kit().px(3),placeholder}
     local basePaint,baseFree=node.paintTo,node.free
     function node:paintTo(bb,px,py)
         if not self.started then
@@ -49,7 +59,7 @@ function HomeWidgets.cover(canvas,book,x,y,w,h,ink)
                     image:_render()
                 end)
                 if ok then
-                    self[1]:free(); self[1]=image
+                    self[1]:free(); self[1]=image;self.coverReady=true
                     UIManager:setDirty(host,"ui",self.dimen)
                 elseif image then image:free() end
                 finish()
@@ -84,13 +94,13 @@ function HomeWidgets.caption(settings, book)
     local job=not book.local_path and book.transfer
     if job then return job.progress_text or job.error or job.state or "" end
     local cap=settings.cap or 0
-    if cap==1 then return book.added and tostring(book.added):sub(1,10) or "—" end
+    if cap==1 then return book.added_label or (book.added and tostring(book.added):sub(1,10)) or "—" end
     if type(book.status_note)=="string" then return book.status_note end
     if cap==2 then return book.status=="finished" and _("Finished") or book.progress and string.format("%d%%",book.progress) or _("Not started") end
     if cap==3 then return book.authors and book.authors[1] or "" end
     return ""
 end
-function HomeWidgets.card(p, snapshot, dispatch, rect)
+function HomeWidgets.classicCard(p, snapshot, dispatch, rect)
     local u=HomeWidgets.ui(); local scale=function(n) return Device.screen:scaleBySize(n) end
     local geometry=HomeHostPlan.cardGeometry(p,rect,scale)
     local w,h,compact,pad=geometry.w,geometry.h,geometry.compact,geometry.pad
@@ -197,6 +207,141 @@ function HomeWidgets.card(p, snapshot, dispatch, rect)
     end
     return u.Frame:new{padding=0,margin=0,bordersize=1,radius=scale(10),background=hero and u.BB.COLOR_BLACK or u.BB.COLOR_WHITE,canvas}
 end
+-- Approved Home presentation; catalogue lists retain their independent renderer.
+function HomeWidgets.card(p,snapshot,dispatch,rect)
+    if p.instance=="list-books" or rect.h<HomeWidgets.kit().px(132) then return HomeWidgets.classicCard(p,snapshot,dispatch,rect) end
+    local K=HomeWidgets.kit();local px=K.px
+    local w,h=rect.w,rect.h;local pad=px(16);local settings=p.settings or {}
+    local hero=p.widget=="continue-reading"
+    local ready=snapshot.state=="ready" or snapshot.state=="offline-with-data"
+    local title=type(settings.title)=="string" and #settings.title<=80 and settings.title or (hero and "Continue reading" or p.widget=="lists" and "Lists" or "Shelf")
+    local card=K.card{w=w,h=h,title=not hero and title or nil,ink=hero,
+        count=snapshot.total,all=not hero and function() dispatch("all") end or nil}
+    local c=card.content
+    if not ready then
+        if hero then K.label(c,title,pad,pad,w-2*pad,"small",{bold=true,ink=true}) end
+        local labels={loading="Loading…",empty=hero and "Open a book to start reading" or p.widget=="lists" and "No lists yet" or "No books here yet",
+            ["offline-without-data"]="Not saved yet",error="Couldn't load this widget"}
+        K.label(c,snapshot.setup and "Sign in to load your library" or labels[snapshot.state] or "Unavailable",pad,px(58),w-2*pad,"body",{ink=hero})
+        if snapshot.state~="empty" then K.put(c,K.button{text=snapshot.setup and "Sign in" or "Retry",w=math.min(w-2*pad,px(160)),
+            variant="outline",callback=function() dispatch(snapshot.setup and "setup" or "retry") end},pad,h-pad-px(52)) end
+        return card
+    end
+    local function cover(b,x,y,cw,ch)
+        HomeWidgets.cover(c,b,x,y,cw,ch,hero)
+        HomeWidgets.coverTap(c,function() dispatch("book",b) end,x,not hero and math.max(y,px(52)) or y,cw,ch)
+        if not hero and not b.local_path then
+            local badge=K.canvas(px(20),px(20));K.put(badge,K.icon{name="clouddl",w=px(14)},px(3),px(3))
+            K.put(c,K.frame(badge,{w=px(20),h=px(20),radius=px(10),border=px(1.5)}),x+cw-px(10),y+ch-px(10))
+        end
+    end
+    if hero and h<px(250) then
+        local b=snapshot.items[1];local ch=h-2*pad;local cw=math.min(math.floor(ch*2/3),math.floor(w*.36))
+        ch=math.floor(cw*1.5);local x=pad+cw+px(14);local tw=w-x-pad
+        cover(b,pad,math.floor((h-ch)/2),cw,ch)
+        K.label(c,b.title or "Untitled",x,pad,tw-px(42),w<px(420) and 20 or 24,{serif=true,bold=true,ink=true})
+        if w>=px(420) then K.label(c,b.authors and b.authors[1] or "",x,pad+px(30),tw,"small",{ink=true}) end
+        K.put(c,K.button{text="⋯",w=px(52),h=px(52),variant="ghost",ink=true,callback=function() dispatch("more",b) end},w-pad-px(52),0)
+        local pct=tonumber(b.progress);pct=pct and pct==pct and math.max(0,math.min(100,pct)) or nil
+        K.label(c,pct and string.format("%d%%",pct) or "—",x,h-pad-px(98),px(60),"caption",{bold=true,ink=true})
+        K.label(c,b.time_left or "Not enough reading yet",x+px(66),h-pad-px(98),tw-px(66),"caption",{ink=true})
+        K.put(c,K.progress{w=tw,h=px(8),value=(pct or 0)/100,ink=true},x,h-pad-px(66))
+        K.put(c,K.button{text=b.local_path and "Resume" or "Download",icon=b.local_path and "play" or nil,w=math.min(px(132),tw),variant="inverted",callback=function() dispatch("book",b) end},x,h-pad-px(52))
+    elseif hero then
+        local b=snapshot.items[1];local ch=h-2*pad;local cw=math.floor(ch*2/3)
+        if w<px(420) then cw=math.min(cw,math.floor(w*.33));ch=math.floor(cw*1.5) end
+        local x=pad+cw+px(22);local tw=w-x-pad
+        cover(b,pad,pad,cw,ch)
+        local capX=x
+        for letter in ("CONTINUE READING"):gmatch(".") do
+            local glyph=K.text{text=letter,w=tw,size="caption",bold=true,ink=true};glyph.fgcolor=K.light
+            if capX+glyph:getSize().w>x+tw-px(42) then glyph:free();break end
+            K.put(c,glyph,capX,pad);capX=capX+glyph:getSize().w+px(1)
+        end
+        K.put(c,K.button{text="⋯",w=px(52),h=px(52),variant="ghost",ink=true,callback=function() dispatch("more",b) end},w-pad-px(44),0)
+        K.label(c,b.title or "Untitled",x,pad+px(22),tw,"heading",{serif=true,bold=true,ink=true})
+        K.label(c,b.authors and b.authors[1] or "",x,pad+px(64),tw,"body",{ink=true}).fgcolor=K.light
+        if h>px(230) then K.label(c,b.series_line or "",x,pad+px(87),tw,"caption",{ink=true}).fgcolor=K.rule end
+        local pct=tonumber(b.progress);if pct and pct~=pct then pct=nil end
+        pct=pct and math.max(0,math.min(100,pct)) or nil
+        local base=h-pad-px(134)
+        local metric=K.canvas(px(120),px(52));metric.text=pct and string.format("%d%%",pct) or "—";metric.max_width=px(120)
+        local digits=K.label(metric,pct and string.format("%d",pct) or "—",0,0,px(120),"number",{bold=true,ink=true})
+        if pct then K.label(metric,"%",digits:getSize().w,px(16),px(44),22,{bold=true,ink=true}) end
+        K.put(c,metric,x,base)
+        local time=K.text{text=b.time_left or "Not enough reading yet",w=tw-px(130),size="body",ink=true}
+        K.put(c,time,w-pad-time:getSize().w,base+px(22))
+        K.put(c,K.progress{w=tw,h=px(11),value=(pct or 0)/100,ink=true},x,h-pad-px(74))
+        local bw=math.min(px(132),tw)
+        K.put(c,K.button{text=b.local_path and "Resume" or "Download",icon=b.local_path and "play" or nil,w=bw,variant="inverted",callback=function() dispatch("book",b) end},x,h-pad-px(52))
+        if tw>px(260) then
+            local text=b.finish_forecast or "Finish date unavailable";local prefix,day=text:match("^(Done by )(.*)$")
+            local forecast=K.canvas(tw-bw-px(18),px(52));forecast.text=text
+            K.put(forecast,K.icon{name="clock",w=px(16),ink=true},0,px(2))
+            local label=K.label(forecast,prefix or text,px(22),0,tw-bw-px(40),"small",{ink=true});label.fgcolor=K.light
+            if day then K.label(forecast,day,px(22)+label:getSize().w,0,tw-bw-px(40)-label:getSize().w,"small",{bold=true,ink=true}) end
+            K.put(c,forecast,x+bw+px(18),h-pad-px(36))
+        end
+    elseif p.widget=="lists" then
+        local rowH=math.max(px(52),math.floor((h-pad-px(40))/4))
+        local count=math.min(snapshot.count,math.floor((h-pad-px(40))/rowH))
+        local icons={"feather","sparkle","calendar","stack"}
+        for i=1,count do
+            local b=snapshot.items[i];local y=px(42)+(i-1)*rowH
+            local row=K.row{text=b.title or b.name or "List",detail=b.count and tostring(b.count).."  ›" or "›",icon=icons[(i-1)%4+1],w=w-2*pad,h=rowH,callback=nil}
+            K.put(c,row,pad,y)
+            K.put(c,K.hit(K.canvas(w-2*pad,rowH),{w=w-2*pad,h=rowH,text=b.title,callback=function() dispatch("list",b) end}),pad,y+px(10))
+            if i<count then K.put(c,K.frame(K.canvas(w-2*pad,px(1)),{w=w-2*pad,h=px(1),background=K.light}),pad,y+rowH-px(4)) end
+        end
+    elseif (settings.style or 0)==0 and h>=px(160) then
+        local count=math.min(snapshot.count,p.w>=4 and 6 or 3)
+        local cell=(w-2*pad)/math.max(count,1)
+        local ch=math.min(h-pad-px(settings.cap==1 and 62 or 44),math.floor((cell-px(12))*1.5))
+        local cw=math.floor(ch*2/3)
+        for i=1,count do
+            local b=snapshot.items[i];local x=pad+(i-1)*cell
+            cover(b,x,px(48),cw,ch)
+            if settings.cap==1 then K.label(c,HomeWidgets.caption(settings,b),x,px(48)+ch+px(5),cell-px(8),"caption",{bold=true}) end
+        end
+    else
+        local rowH=math.max(px(60),math.min(px(68),math.floor((h-pad-px(42))/math.max(1,math.min(snapshot.count,2)))))
+        local count=math.min(snapshot.count,math.floor((h-pad-px(42))/rowH))
+        for i=1,count do
+            local b=snapshot.items[i];local y=px(42)+(i-1)*rowH;local cw=px(42);local ch=px(63)
+            HomeWidgets.cover(c,b,pad,y,cw,ch)
+            K.put(c,K.hit(K.canvas(w-2*pad-px(52),rowH),{w=w-2*pad-px(52),h=rowH,text=b.title,callback=function() dispatch("book",b) end}),pad,y+px(10))
+            local x=pad+cw+px(14);local tw=w-x-pad-px(52)
+            K.label(c,b.title or "Untitled",x,y,tw,"small",{bold=true})
+            local pct=tonumber(b.progress);pct=pct and pct==pct and math.max(0,math.min(100,pct)) or nil
+            K.put(c,K.progress{w=px(70),value=(pct or 0)/100},x,y+px(32))
+            K.label(c,pct and string.format("%d%%",pct) or "—",x+px(78),y+px(26),tw-px(78),"caption",{bold=true})
+            local caption=b.last_read_label or HomeHostPlan.readAge(b.last_read,os.time())
+            if settings.cap~=nil and settings.cap~=2 and h<px(190) then caption=(pct and string.format("%d%% · ",pct) or "")..(b.time_left or "Not enough reading yet").." · "..HomeWidgets.caption(settings,b) end
+            K.label(c,caption,x,y+px(46),tw,"caption",{muted=true})
+            K.put(c,K.icon{name="chevR",w=px(16)},w-pad-px(16),y+(rowH-px(16))/2)
+            K.put(c,K.hit(K.canvas(px(52),rowH),{w=px(52),h=rowH,text="›",callback=function() dispatch("more",b) end}),w-pad-px(52),y+px(10))
+        end
+    end
+    return card
+end
+
+function HomeWidgets.libraryCard(p,snapshot,dispatch,rect)
+    local K=HomeWidgets.kit();local px=K.px;local w,h=rect.w,rect.h
+    if p.w<2 or p.h~=1 or h<px(70) then return StorageUI.widget(p,snapshot,dispatch,rect) end
+    local card=K.card{w=w,h=h};local c=card.content;local pad=px(16)
+    local d=snapshot.data or {};local st=d.storage or {};local half=(w-3*pad)/2
+    local total=d.freshness and d.freshness.saved and tostring(d.total or 0) or "—"
+    K.label(c,total,pad,pad,half,"heading",{bold=true})
+    K.label(c,"books in your library",pad,h-pad-px(20),half,"caption",{muted=true})
+    K.put(c,K.hit(K.canvas(half,h),{w=half,h=h,text="All books",callback=function() dispatch("all") end}),pad,0)
+    local x=half+2*pad
+    K.label(c,tostring(st.on_device or d.on_device or "—"),x,pad,half,"medium",{bold=true})
+    K.label(c,"on device",x+px(44),pad+px(6),half-px(44),"caption",{muted=true})
+    StorageUI.bar(c,st.parts,x,h-pad-px(28),half,px(6))
+    K.label(c,st.widget_label or "Space unavailable",x,h-pad-px(20),half,"caption")
+    K.put(c,K.hit(K.canvas(half,h),{w=half,h=h,text="Storage",callback=function() dispatch("storage") end}),x,0)
+    return card
+end
 for _,id in ipairs({"continue-reading","booklist","lists"}) do HomeWidgets.register(id,HomeWidgets.card) end
 
 -- Register the existing stats renderer against the host snapshot contract. The host
@@ -210,7 +355,7 @@ for _,id in ipairs({"year-in-reading","this-week","when-you-read","reading-recor
     end,function() return {op=WidgetRegistry[name].dataNeeds[1].source=="reading.metrics" and "reading.metrics" or "reading.stats",limit=1} end)
 end
 HomeWidgets.register("library",function(p,snapshot,dispatch,rect)
-    return StorageUI.widget(p,snapshot,dispatch,rect)
+    return HomeWidgets.libraryCard(p,snapshot,dispatch,rect)
 end,function() return {op="library.summary",limit=1} end)
 -- F12-O extends the existing Battery registration with the snapshot-only page renderer.
 HomeWidgets.register("battery",function(p,snapshot,dispatch,rect)

@@ -1,0 +1,51 @@
+{
+  "reminders": [
+    "empty-and-eye-off",
+    "interval-30-draft",
+    "back-discards-eye-draft",
+    "time-keyboard-docked",
+    "message-keyboard-docked",
+    "save-failure-retains-draft",
+    "bedtime-saved",
+    "bedtime-over-home",
+    "page-key-dismisses-home",
+    "bedtime-over-page",
+    "page-key-no-fallthrough",
+    "snooze-1",
+    "snooze-2",
+    "missed-60-minutes",
+    "missed-expired-silent",
+    "eye-rest-static-page",
+    "eye-rest-touch-done",
+    "five-minute-break-reset",
+    "bedtime-wins-same-threshold",
+    "turn-off-failure-stays-enabled",
+    "turn-off-durable",
+    "restart-retains-local-settings"
+  ],
+  "settings_and_sleep": [
+    "full-list-four-row-pages",
+    "maximum-message-editor",
+    "delete-cancel-initial-focus",
+    "custom-days-draft",
+    "twelve-hour-time-input",
+    "future-read-only-details",
+    "unreadable-store-settings-only",
+    "recovered-and-unknown-clock",
+    "sleep-available-explicit-only",
+    "sleep-failure-keeps-page",
+    "sleep-failure-allows-snooze",
+    "native-sleep-wake-restores-page",
+    "companion-information-row"
+  ],
+  "crash_summary": {
+    "checks": 10,
+    "capture": "disposable companion process",
+    "crashes": 2,
+    "record_bytes": 81,
+    "timezone": "America/Los_Angeles",
+    "reading_interrupted": false,
+    "copy_sanitized": true,
+    "clear_survives_restart": true
+  }
+}

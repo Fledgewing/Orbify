@@ -10,7 +10,11 @@ return function(here, test, ok, eq, audit)
             return c
         end
         local Widget=class()
+        function Widget:getSize() return {w=self.width or self.max_width or self.dimen and self.dimen.w or 20,h=self.height or self.dimen and self.dimen.h or 20} end
         function Widget:onShowKeyboard() end
+        function Widget:getSize() return {w=self.width or self.dimen and self.dimen.w or math.min(self.max_width or 100,#(self.text or "")*7),h=self.height or self.dimen and self.dimen.h or 20} end
+        function Widget:getText() return self.text or "" end
+        function Widget:onCloseKeyboard() end
         function Widget:getInputText() return self.input or "" end
         W.face={hash="fixture",ftsize={getEmboldenHalfStrength=function(_,factor) return factor end}}
         local ui={document={file="/books/fixture.epub",info={number_of_pages=200}},view={state={page=124}},menu={}}
@@ -40,6 +44,7 @@ return function(here, test, ok, eq, audit)
                 return a.op=="reader.controls" and W.controls or a.op=="capabilities" and W.caps or a.op=="battery" and W.battery or W.book,256
             end,request=function(batch) W.trips=W.trips+1; W.batch=batch; return true end,
                 syncCurrent=function(done) W.syncs=W.syncs+1; W.done=done; return true end}}, {__index=_G})
+        E.SOURCE_DIR=here.."/../orbit.koplugin"
         W.E=E
         E.UIManager={scheduleIn=function(_,_,fn) W.poll=fn end, show=function(_,s) W.shown[#W.shown+1]=s; W.top=s end,
             close=function(_,s)
@@ -62,8 +67,10 @@ return function(here, test, ok, eq, audit)
             if name:match("^ui/widget/") then return Widget end
             return require(name)
         end
+        E.SOURCE_DIR=here.."/../orbit.koplugin"
+        E.Device=E.require("device")
         local function load(name) local fn=assert(loadfile(here.."/../orbit.koplugin/"..name)); setfenv(fn,E); fn() end
-        for _,name in ipairs({"logic/ui_util.lua","logic/cache.lua","logic/budgets.lua","logic/reading_style.lua","logic/settings_ui.lua","logic/sheet_layout.lua","logic/reader_panel.lua","ko/library.lua","ko/library_services.lua","ko/endsheet.lua","ko/reading_style.lua","ko/custom_reading.lua","ko/reader_panel.lua"}) do load(name) end
+        for _,name in ipairs({"logic/ui_util.lua","logic/cache.lua","logic/budgets.lua","logic/reading_style.lua","logic/settings_ui.lua","logic/sheet_layout.lua","logic/reader_panel.lua","ko/library.lua","ko/library_services.lua","ko/endsheet.lua","ko/reading_style.lua","ko/ui/kit.lua","ko/ui/settings_page.lua","ko/ui/reader_surface.lua","ko/custom_reading.lua","ko/reader_panel.lua"}) do load(name) end
         if audit then
             local paint=E.Library.paint
             E.Library.paint=function(screen)
@@ -138,12 +145,12 @@ return function(here, test, ok, eq, audit)
         end
         eq(bars,1)
         local sheet=E.ReaderPanel.sheet
-        local bar=sheet:rowWidget({kind="progress",row={value=0.62}},500,26,sheet.metrics)
-        eq(bar.percentage,0.62); eq(#bar.ticks,0); eq(bar.bordersize,0); eq(bar.radius,0)
-        eq(bar.margin_h,0); eq(bar.margin_v,0)
+        eq(sheet.alpha,.6,"translucent sheets request an undimmed background repaint")
+        eq(sheet.frame.radius,math.floor(20*600/702+.5))
+        ok(#sheet.focus_controls>=10,"kit controls participate in focus traversal")
         ok(#W.logs>=5,"call, paint and draw timing spans")
         row(E,"Book info").action()
-        ok(row(E,"3 days start to finish")); ok(row(E,"61 min reading time")); ok(row(E,"120 pages read"))
+        ok(row(E,"3 days start to finish")); ok(row(E,"1 h 01 m")); ok(row(E,"120 pages read"))
         row(E,"Details").action(); eq(E.ReaderPanel.sheet.screen,"details"); eq(W.reads[#W.reads-1],"reader","in-book Details keeps the native reader context")
         row(E,"Back to book").action(); eq(E.ReaderPanel.sheet,nil); eq(W.ui.document.file,"/books/fixture.epub")
         E.ReaderPanel.details("opaque"); eq(W.reads[#W.reads-1],"book")
@@ -190,7 +197,7 @@ return function(here, test, ok, eq, audit)
         poll(); eq(#W.shown,shown,"cold completion never reopens the book overlay")
         E.ReaderPanel.show(W.ui,"book-info"); local sheet=E.ReaderPanel.sheet
         W.missing=false; W.poll(); eq(E.ReaderPanel.sheet,sheet)
-        ok(row(E,"61 min reading time"),"cold projection updates the existing user-opened surface")
+        ok(row(E,"1 h 01 m"),"cold projection updates the existing user-opened surface")
     end)
     test("reader panel: native escape, close lifecycle and enforced surface/widget budgets",function()
         local W,E=world()
@@ -232,7 +239,10 @@ return function(here, test, ok, eq, audit)
                 row(E,pair[1]=="Contents" and "Native Contents options…" or "Edit saved items in KOReader…").action()
             else
                 local input=W.shown[#W.shown]
-                if pair[1]=="Search" then input.buttons[1][2].callback() else input.buttons[2][1].callback() end
+                eq(input.screen,pair[1]=="Search" and "reader-search" or "reader-goto")
+                if pair[1]=="Search" then ok(input.is_always_active,"input remains interactive below the native keyboard") end
+                E.ReaderPanel.close()
+                E.Library.readerNativeAction(W.ui,pair[1]=="Search" and "search" or "goto")
             end
             eq(W.action,pair[2])
         end
@@ -255,11 +265,12 @@ return function(here, test, ok, eq, audit)
         local scrub
         for _,r in ipairs(sheet:rows()) do if r.kind=="scrubber" then scrub=r end end
         eq(#scrub.chapters,6); eq(#scrub.bookmarks,2); eq(scrub.value,.62)
-        local copy={}; for k,v in pairs(scrub) do copy[k]=v end; copy.previous=nil
-        local area=sheet:rowWidget({kind="scrubber",row=copy},600,50,sheet.metrics)
-        area.dimen.x=10; area.onTap(area,nil,{pos={x=260}}); eq(moves[1],50)
-        area.onTap(area,nil,{pos={x=-20}}); eq(moves[2],0)
-        area.onTap(area,nil,{pos={x=999}}); eq(moves[3],100)
+        local area=sheet.focus_controls[2]
+        area.dimen.x=10
+        local width=math.floor(516*600/702+.5)
+        area:onKitTap(nil,{pos={x=10+width/2}});eq(moves[1],50)
+        area:onKitTap(nil,{pos={x=-20}});eq(moves[2],0)
+        area:onKitTap(nil,{pos={x=999}});eq(moves[3],100)
         local trips=W.trips
         sheet:onSelect(); eq(sheet.scrub_focus,true)
         eq(W.trips,trips,"grab feedback is geometry-only, without a library read")
@@ -382,8 +393,6 @@ return function(here, test, ok, eq, audit)
             end
             ok(width<sheet.plan.inner,"header leaves room for title and author")
             ok(sheet.plan.h<=sheet.screen_h)
-            local position=sheet:rowWidget({kind="reader-position",row={text="Chapter",position="p. 1 of 200 · 1%"}},501,24,sheet.metrics)
-            eq(position[1].dimen.w+position[2].dimen.w,501,"chapter and page bands fill the row without overlap")
             E.ReaderPanel.show(W.ui,"reader-bottom-panel")
             sheet=E.ReaderPanel.sheet; ok(sheet.plan.h<=sheet.screen_h)
             for _,item in ipairs(sheet.plan.items) do
@@ -423,8 +432,11 @@ return function(here, test, ok, eq, audit)
         for _,r in ipairs(sheet:rows()) do
             if r.kind=="reader-lights" then
                 eq(#r.controls,1)
-                local widget=sheet:rowWidget({kind="reader-lights",row=r},500,74,sheet.metrics)
-                eq(widget[1].text,"Front light")
+                local found=false
+                for _,control in ipairs(sheet.focus_controls) do if control.text==r.controls[1].text then found=true end end
+                ok(found,"supported hardware slider is a real kit control")
+                for _,control in ipairs(sheet.focus_controls) do if control.text==r.controls[1].text then control.callback();break end end
+                eq(W.light,40,"hardware Select adjusts the published light by ten percent")
             end
         end
         W.hardware=false
@@ -635,12 +647,14 @@ return function(here, test, ok, eq, audit)
         local trap={wrap=function(_,work) pending=work end,dismissableRunInSubprocess=function(_,work) return completed,completed and work() or nil end}
         E.require=function(name) if name=="ui/trapper" then return trap end;return original(name) end
         ui.document.findAllText=function(_,query,caseInsensitive,context,maximum,regex,flags)
-            eq(query,"needle");eq(caseInsensitive,true);eq(context,8);eq(maximum,128);eq(regex,false);eq(flags,255)
+            eq(query,"needle");eq(caseInsensitive,true);eq(context,8);eq(maximum,129);eq(regex,false);eq(flags,255)
             return {{start="match-xp",["end"]="match-end",matched_text="needle",prev_text="before",next_text="after"}}
         end
+        local resolutions=0
+        ui.document.getPageFromXPointer=function(_,xp) eq(xp,"match-xp");resolutions=resolutions+1;return 42 end
         local answer
         ok(E.Library.readerSearch(ui,"needle",{},function(okay) answer=okay end));eq(answer,nil);pending();eq(answer,true)
-        local result=E.Library.readerWindow(ui,"search",0,8);eq(result.total,1);eq(result.query,"needle")
+        local result=E.Library.readerWindow(ui,"search",0,8);eq(result.total,1);eq(result.query,"needle");eq(result.items[1].location,"42");eq(resolutions,1)
         local history=0;ui.link={addCurrentLocationToStack=function() history=history+1 end}
         ui.rolling={onGotoXPointer=function(_,xp,marker) eq(xp,"match-xp");eq(marker,xp) end}
         ui.document.getTextFromXPointers=function(_,a,b,mark) eq(a,"match-xp");eq(b,"match-end");eq(mark,true) end
@@ -687,6 +701,80 @@ return function(here, test, ok, eq, audit)
         W.ui.toc={toc={{page=1,title="Chapter"}},onShowToc=function() W.native_toc=true end}
         E.ReaderPanel.navigation(W.ui,"contents")
         eq(E.ReaderPanel.sheet,nil);ok(W.native_toc)
+    end)
+
+    test("reader navigation: display fields keep notes, quote context and exact token refs",function()
+        local W,E=world();local ui=W.ui
+        ui.annotation={annotations={{drawer="lighten",text="Quoted words",note="A saved note",page=12},{text="Saved position",page=13}}}
+        local result=E.Library.readerWindow(ui,"annotations",0,11)
+        eq(result.items[1].annotation_kind,"highlight");eq(result.items[1].quote,"Quoted words")
+        eq(result.items[1].note,"A saved note");eq(result.items[2].annotation_kind,"bookmark")
+        ui.toc={toc={{page=1,title="One"},{page=20,title="Two"},{page=40,title="Three"}}}
+        result=E.Library.readerWindow(ui,"contents",0,11,2)
+        eq(result.current,2);eq(result.items[1].finished,true);eq(result.items[2].current,true);eq(result.items[3].finished,false)
+        ui.booksync_search={document=ui.document,file=ui.document.file,query="word",results={{prev_text="Before",matched_text="word",next_text="after"}}}
+        result=E.Library.readerWindow(ui,"search",0,11)
+        eq(result.items[1].before,"Before");eq(result.items[1].match,"word");eq(result.items[1].after,"after")
+        ok(#E.UIUtil.encode(result)<16384)
+    end)
+    test("reader owned keypad: valid page/percent, bounded entry and document lifetime",function()
+        local W,E=world();local ui=W.ui
+        ui.link={addCurrentLocationToStack=function() W.history=(W.history or 0)+1 end}
+        ui.handleEvent=function(_,event) W.event=event end
+        ui.rolling={onGotoPercent=function(_,value) W.percent=value;return true end}
+        E.ReaderPanel.goDialog(ui);local sheet=E.ReaderPanel.sheet
+        sheet.go_edit("4");sheet.go_edit("2");eq(sheet.go_value,"42")
+        sheet.go_submit();eq(W.event.name,"GotoPage");eq(W.event[1],42);eq(E.ReaderPanel.sheet,nil)
+        E.ReaderPanel.goDialog(ui);sheet=E.ReaderPanel.sheet;sheet.go_value="201";sheet.go_submit()
+        eq(E.ReaderPanel.sheet,sheet);ok(sheet.go_error);eq(W.history,1)
+        sheet.go_percent=true;sheet.go_value="75";sheet.go_submit();eq(W.percent,75);eq(W.history,2)
+        E.ReaderPanel.goDialog(ui);sheet=E.ReaderPanel.sheet;ui.document={file="other.epub"};sheet.go_submit()
+        eq(E.ReaderPanel.sheet,nil);eq(W.history,2)
+    end)
+    test("reader bottom sheets: taps above navigation and keypad close without navigating",function()
+        local W,E=world();local ui=W.ui
+        ui.toc={toc={{page=1,title="One"}}}
+        for _,open in ipairs({function() E.ReaderPanel.navigation(ui,"contents") end,function() E.ReaderPanel.goDialog(ui) end}) do
+            open();local sheet=E.ReaderPanel.sheet
+            ok(sheet.sheet_y>0);eq(sheet:onTapAnywhere(nil,{pos={x=300,y=sheet.sheet_y-1}}),true);eq(E.ReaderPanel.sheet,nil)
+        end
+    end)
+
+    test("reader annotation display: worst-case escaped quotes remain inside the snapshot byte cap",function()
+        local W,E=world();local ui=W.ui
+        ui.annotation={annotations={}}
+        for i=1,20 do ui.annotation.annotations[i]={page=i,drawer="lighten",text=string.rep('"',100000),note=string.rep('"',100000),chapter=string.rep('"',100000)} end
+        local result=E.Library.readerWindow(ui,"annotations",0,100)
+        eq(#result.items,8);eq(#result.items[1].quote,360);eq(#result.items[1].note,180);eq(#result.items[1].chapter,120)
+        ok(#E.UIUtil.encode(result)<=16384,"quoted display fields fit their declared native snapshot cap")
+    end)
+
+    test("reader search revision: whole-word literal, exact cap and chapter are worker-owned",function()
+        local W,E=world();local ui=W.ui;local original=E.require
+        E.require=function(name)
+            if name=="ui/trapper" then return {wrap=function(_,fn) fn() end,dismissableRunInSubprocess=function(_,fn) return true,fn() end} end
+            return original(name)
+        end
+        ui.toc={toc={{page=1},{page=20},{page=40}}}
+        ui.document.getPageFromXPointer=function() return 42 end
+        local count=128
+        ui.document.findAllText=function(_,query,case,context,limit,regex)
+            eq(query,"\\ba\\+b\\b");eq(limit,129);eq(regex,true)
+            local rows={};for i=1,count do rows[i]={start="xp",matched_text="a+b",prev_text="before",next_text="after"} end
+            return rows
+        end
+        E.Library.readerSearch(ui,"a+b",{},function(done) ok(done) end,true)
+        local result=E.Library.readerWindow(ui,"search",0,8)
+        eq(result.total,128);eq(result.capped,false);eq(result.whole_words,true);eq(result.items[1].chapter,"Chapter 3")
+        count=129;E.Library.readerSearch(ui,"a+b",{},function(done) ok(done) end,true)
+        result=E.Library.readerWindow(ui,"search",0,8);eq(result.total,128);eq(result.capped,true)
+        ui.paging={}
+        ui.document.findAllText=function(_,query,case,context,limit,regex)
+            eq(query," a+b ");eq(regex,false);return {}
+        end
+        E.Library.readerSearch(ui,"a+b",{},function(done) ok(done) end,true)
+        ui.doc_props={description="Native EPUB description"}
+        local m=E.Library.readerMetadata(ui);eq(m.total_pages,200);eq(m.description,"Native EPUB description")
     end)
 
 end

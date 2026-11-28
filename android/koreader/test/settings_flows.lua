@@ -3,7 +3,7 @@ return function(test,eq,ok,E,W,Widget)
     local function withUI(fn)
         local oldScale=E.Device.screen.scaleBySize
         E.Device.screen.scaleBySize=function(_,n) return n end
-        local oldRequire,oldRead,oldRequest=E.require,E.LibraryAdapter.read,E.LibraryAdapter.request
+        local oldRequire,oldRead,oldRequest,oldRefresh=E.require,E.LibraryAdapter.read,E.LibraryAdapter.request,E.Shared.refresh
         local dialogClass=Widget:extend{moveFocusTo=function(self,x,y) self.focus={x,y} end,getButtonById=function() end}
         E.require=function(name)
             if name=="ui/widget/buttondialog" then return dialogClass end
@@ -13,6 +13,7 @@ return function(test,eq,ok,E,W,Widget)
         if E.SettingsView.active then E.SettingsView.active:close() end
         E.require,E.LibraryAdapter.read,E.LibraryAdapter.request=oldRequire,oldRead,oldRequest
         E.Device.screen.scaleBySize=oldScale
+        E.Shared.refresh=oldRefresh
         ok(success,err)
     end
     local function button(view,id)
@@ -123,4 +124,92 @@ return function(test,eq,ok,E,W,Widget)
         local about=groups.about.sub_item_table_func()
         ok(about[1].text:find("Version:",1,true)); ok(about[2].text:find("This reader:",1,true)); eq(about[3].text,"About")
     end)
+    test("Settings owned navigation: replaced pages retire; a locked direct account route stays read only",function()
+        withUI(function()
+            local owner=setmetatable({},{__index=E.OrbitAndroid})
+            local pin=E.Shared.pin_locked
+            E.Shared.refresh=function() end
+            E.Shared.pin_locked=false
+            local first=owner:showSettings("home")
+            local second=owner:showSettings("reading")
+            eq(first.alive,false);eq(first.dialog,nil);eq(second.parent,nil)
+            E.Shared.pin_locked=true
+            local account=owner:showSettings("account")
+            eq(second.alive,false);eq(account.screen,"settings-account")
+            for _,row in ipairs(account.make()) do
+                if row.callback then ok(row.enabled_func and not row.enabled_func(),"account actions respect PIN") end
+            end
+            account.onBack=nil;account:close();E.Shared.pin_locked=pin
+        end)
+    end)
+
+    test("Settings setup: pending setup is an owned row and delayed prompts stay quiet",function()
+        withUI(function()
+            local owner=setmetatable({},{__index=E.OrbitAndroid})
+            local previous=E.Shared.setup_needed
+            E.Shared.refresh=function() end;E.Shared.setup_needed=9
+            local old=Widget:new{ok_text="Fix now"};E.OrbitAndroid.setup_dialog=old;E.UIManager:show(old)
+            local v=owner:showSettings()
+            eq(E.OrbitAndroid.setup_dialog,nil);eq(v.make()[1].text,"Companion setup");eq(v.make()[1].detail,"9 steps")
+            local count=#W.shown
+            owner:maybeSetupPrompt("start");owner:maybeSetupPrompt("resume")
+            eq(#W.shown,count);eq(W.shown[#W.shown],v.dialog)
+            E.Shared.setup_needed=previous
+        end)
+    end)
+
+    test("Reminders presentation: editor Save/Delete stay with the draft; saved lists page four rows",function()
+        withUI(function()
+            local render=E.RemindersUI.page
+            E.RemindersUI.page=function() return Widget:new{} end
+            local success,why=pcall(function()
+                local rows={}
+                for _,text in ipairs({"Reminder","Time","Days","Message","Save","Delete"}) do rows[#rows+1]={text=text} end
+                local editor=E.SettingsView.open("Edit reminder",function() return rows end,"reminders-editor")
+                eq(#editor.dialog.buttons,7);eq(editor.dialog.buttons[5][1].text,"Save");eq(editor.dialog.buttons[6][1].text,"Delete")
+                eq(button(editor,"next"),nil);editor:close()
+                for i=7,10 do rows[i]={text="Reminder "..i} end
+                local list=E.SettingsView.open("Reminders",function() return rows end,"reminders-list")
+                eq(#list.dialog.buttons,5);ok(button(list,"next"));button(list,"next").callback()
+                eq(list.offset,4);eq(list.dialog.buttons[1][1].text,"Save");list:close()
+            end)
+            E.RemindersUI.page=render;ok(success,why)
+        end)
+    end)
+
+    test("Reminders unknown clock: warning is scoped to time and connection uses the existing companion route",function()
+        withUI(function()
+            local list,render,open=E.Library.reminders.list,E.RemindersUI.page,E.Library.companion.openStatus
+            local calls=0
+            E.RemindersUI.page=function() return Widget:new{} end
+            E.Library.reminders.list=function(done) done({clockStatus="unknown",timeCount=1,items={
+                {kind="interval",title="Rest your eyes",enabled=true,editable=true},
+                {kind="time",title="9:00 PM",detail="Every day",enabled=true,editable=true}}}) end
+            E.Library.companion.openStatus=function() calls=calls+1 end
+            local success,why=pcall(function()
+                local v=E.RemindersUI.open();local rows=v.make()
+                eq(#rows,4);eq(rows[1].note_func(),"Uses reading time; no clock needed")
+                ok(rows[1].kitWarning:find("Reminders need the time",1,true))
+                eq(rows[2].note_func(),"Every day · Waiting for time")
+                eq(rows[3].text,"Connect to Wi-Fi");rows[3].callback();eq(calls,1)
+                eq(v.make()[2].note_func(),"Every day · Waiting for time","opening controls cannot claim clock recovery")
+            end)
+            E.Library.reminders.list,E.RemindersUI.page,E.Library.companion.openStatus=list,render,open
+            ok(success,why)
+        end)
+    end)
+
+    test("Foreground gate: native activity state wins over a stale owner Resume memo",function()
+        local native,wifi=E.Jni.isResumed,E.Wifi.state
+        local success,why=pcall(function()
+            E.Wifi.state=function() return {foreground=false} end
+            E.Jni.isResumed=function() return true end;eq(E.Library.isForeground(),true)
+            E.Wifi.state=function() return {foreground=true} end
+            E.Jni.isResumed=function() return false end;eq(E.Library.isForeground(),false)
+            E.Jni.isResumed=function() return nil end;eq(E.Library.isForeground(),true)
+            E.Wifi.state=function() return {foreground=false} end;eq(E.Library.isForeground(),false)
+        end)
+        E.Jni.isResumed,E.Wifi.state=native,wifi;ok(success,why)
+    end)
+
 end

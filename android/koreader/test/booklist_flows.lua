@@ -129,7 +129,7 @@ return function(test,eq,ok,E,W,Widget,withHost)
             eq(h.list_layout.pages[1].placements[1].settings.exclude_current,true)
             eq(h.filter.exclude_current,true)
             h.filter:show()
-            eq(reads[#reads].op,"facets"); eq(reads[#reads].exclude_current,true)
+            eq(reads[#reads].op,"counts"); eq(reads[#reads].exclude_current,true)
             local out,page=E.HomeHostPlan.saveFilter(E.S.home_layout,{base_source="reading",query={},exclude_current=true})
             for _,pg in ipairs(out.pages) do if pg.id==page then
                 eq(pg.placements[#pg.placements].settings.exclude_current,true)

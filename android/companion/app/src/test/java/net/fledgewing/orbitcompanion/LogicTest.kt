@@ -455,7 +455,7 @@ class HomeCommandsTest {
         assertEquals("home_smart", HomeCommands.forPress(HomeButton.SMART))
         assertEquals("home", HomeCommands.forPress(HomeButton.LIBRARY))
         assertEquals("home_smart", HomeCommands.forUncovered(HomeButton.SMART))
-        assertNull(HomeCommands.forUncovered(HomeButton.LIBRARY))
+        assertEquals(HomeCommands.HOME, HomeCommands.forUncovered(HomeButton.LIBRARY))
     }
 
     @Test
@@ -802,6 +802,16 @@ class HomeAppTest {
         assertEquals(HomeAction.START_KOREADER, d.onHomePress(1_000, true, true))
         assertEquals(HomeAction.SHOW_LAUNCHER, d.onHomePress(2_000, true, true))
         assertEquals("missing app: launcher", HomeAction.SHOW_LAUNCHER, HomeDecider().onHomePress(0, false, true))
+    }
+
+    @Test fun everyKoreaderHomeRouteHasAnExplicitCommand() {
+        for (choice in listOf(null,"",HomeApp.KOREADER_PKG)) for (button in HomeButton.entries) {
+            for (press in listOf(false,true)) for (front in listOf(false,true)) {
+                val launch=HomeApp.launch(choice,press,button,front)
+                assertNull(launch.pkg)
+                assertTrue(launch.command in setOf(HomeCommands.HOME,HomeCommands.HOME_SMART))
+            }
+        }
     }
 
     @Test

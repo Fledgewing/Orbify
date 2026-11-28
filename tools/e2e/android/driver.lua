@@ -1,5 +1,10 @@
 -- SPDX-License-Identifier: MIT
 -- Test-only user patch installed on a dedicated emulator, never packaged with BookSync.
+-- Seed the native first-run preference before reader.lua:195 tests it. This late
+-- user patch runs at reader.lua:190, while G_reader_settings is already open.
+-- A known emulator color screen needs no first-run notice over a reviewed sheet.
+G_reader_settings:makeTrue("color_rendering")
+G_reader_settings:flush()
 local UI=require("ui/uimanager")
 local base="/sdcard/koreader/e2e-"
 local running=false
@@ -11,7 +16,13 @@ local function run()
     local code=file:read("*a");file:close();os.remove(base.."command.lua")
     running=true
     local request_id=code:match("^%-%- booksync%-request:([%x]+)\n") or "unknown"
-    local plugin=require("pluginloader"):getPluginInstance("orbit")
+    -- PluginLoader:finalize() clears its registry when a Reader is retired,
+    -- while the reused FileManager retains its registered module. Resolve the
+    -- actual native owner first (frontend/apps/filemanager/filemanager.lua:379).
+    local reader=require("apps/reader/readerui").instance
+    local manager=require("apps/filemanager/filemanager").instance
+    local owner=reader and reader.document and reader or manager
+    local plugin=owner and owner.orbit or require("pluginloader"):getPluginInstance("orbit")
     local ok,result=pcall(function()
         assert(plugin,"plugin not loaded")
         local method=plugin.onSuspend
