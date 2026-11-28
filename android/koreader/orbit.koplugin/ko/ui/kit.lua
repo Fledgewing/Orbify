@@ -16,7 +16,7 @@ function BookSyncUI.new(scale)
         space={xs=4,sm=8,gap=12,pad=16,edge=20},line={hair=1,control=1.5,card=1,focus=3},
         radius={cover=3,small=10,card=16,sheet=20},tap=52,coverRatio=2/3,
         face={display="NotoSerif-Regular.ttf",ui="NotoSans-Regular.ttf"}}
-    K.icons={chevR=true,search=true,home=true,play=true,more=true,check=true,sync=true,feather=true,sparkle=true,calendar=true,stack=true,clock=true,books=true,toc=true,bookmark=true,goto=true,info=true,kmenu=true,plus=true,minus=true,x=true,edit=true,trash=true,resize=true,arrowL=true,arrowR=true,arrowU=true,arrowD=true}
+    K.icons={chevR=true,search=true,home=true,play=true,more=true,check=true,sync=true,feather=true,sparkle=true,calendar=true,stack=true,clock=true,books=true,toc=true,bookmark=true,["goto"]=true,info=true,kmenu=true,plus=true,minus=true,x=true,edit=true,trash=true,resize=true,arrowL=true,arrowR=true,arrowU=true,arrowD=true}
     K.black,K.white,K.gray,K.light=BB.COLOR_BLACK,BB.COLOR_WHITE,BB.Color8(0x55),BB.Color8(0xcf)
     K.tile,K.rule=BB.Color8(0xec),BB.Color8(0x8c)
     function K.px(n) return math.floor(n*K.scale+.5) end
