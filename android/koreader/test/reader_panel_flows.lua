@@ -70,7 +70,7 @@ return function(here, test, ok, eq, audit)
         E.SOURCE_DIR=here.."/../orbit.koplugin"
         E.Device=E.require("device")
         local function load(name) local fn=assert(loadfile(here.."/../orbit.koplugin/"..name)); setfenv(fn,E); fn() end
-        for _,name in ipairs({"logic/ui_util.lua","logic/cache.lua","logic/budgets.lua","logic/reading_style.lua","logic/settings_ui.lua","logic/sheet_layout.lua","logic/reader_panel.lua","ko/library.lua","ko/library_services.lua","ko/endsheet.lua","ko/reading_style.lua","ko/ui/kit.lua","ko/ui/settings_page.lua","ko/custom_reading.lua","ko/reader_panel.lua"}) do load(name) end
+        for _,name in ipairs({"logic/ui_util.lua","logic/cache.lua","logic/budgets.lua","logic/reading_style.lua","logic/settings_ui.lua","logic/sheet_layout.lua","logic/reader_panel.lua","ko/library.lua","ko/library_services.lua","ko/endsheet.lua","ko/reading_style.lua","ko/ui/kit.lua","ko/ui/reader_surface.lua","ko/ui/settings_page.lua","ko/custom_reading.lua","ko/reader_panel.lua"}) do load(name) end
         if audit then
             local paint=E.Library.paint
             E.Library.paint=function(screen)
