@@ -62,6 +62,23 @@ class EmulatorSafetyTest(unittest.TestCase):
         self.assertIn('==1 then UI:close(w)',code)
         self.assertNotIn('click(',code)
 
+    def test_native_navigation_wait_only_probes_the_new_plugin_instance(self):
+        device=object.__new__(Emulator)
+        device.command=Mock(side_effect=[RuntimeError('driver.lua:21: plugin not loaded'),'true'])
+        with patch('time.sleep'):device.wait_driver()
+        self.assertEqual(2,device.command.call_count)
+        self.assertTrue(all(call.args==('return true',) for call in device.command.call_args_list))
+
+    def test_native_navigation_wait_never_retries_a_real_driver_failure(self):
+        device=object.__new__(Emulator);device.command=Mock(side_effect=RuntimeError('broken renderer'))
+        with self.assertRaisesRegex(RuntimeError,'broken renderer'):device.wait_driver()
+        self.assertEqual(1,device.command.call_count)
+
+    def test_native_navigation_wait_fails_if_the_plugin_never_reappears(self):
+        device=object.__new__(Emulator);device.command=Mock(side_effect=RuntimeError('plugin not loaded'))
+        with patch('time.monotonic',side_effect=[0,21]):
+            with self.assertRaises(TimeoutError):device.wait_driver()
+
     def test_startup_wait_polls_readiness_without_repeating_a_ui_action(self):
         device=object.__new__(Emulator)
         device.command=Mock(side_effect=["pending","pending","ready"])

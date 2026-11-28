@@ -177,4 +177,17 @@ return function(test,eq,ok,E,W,Widget)
         end)
     end)
 
+    test("Foreground gate: native activity state wins over a stale owner Resume memo",function()
+        local native,wifi=E.Jni.isResumed,E.Wifi.state
+        local success,why=pcall(function()
+            E.Wifi.state=function() return {foreground=false} end
+            E.Jni.isResumed=function() return true end;eq(E.Library.isForeground(),true)
+            E.Wifi.state=function() return {foreground=true} end
+            E.Jni.isResumed=function() return false end;eq(E.Library.isForeground(),false)
+            E.Jni.isResumed=function() return nil end;eq(E.Library.isForeground(),true)
+            E.Wifi.state=function() return {foreground=false} end;eq(E.Library.isForeground(),false)
+        end)
+        E.Jni.isResumed,E.Wifi.state=native,wifi;ok(success,why)
+    end)
+
 end

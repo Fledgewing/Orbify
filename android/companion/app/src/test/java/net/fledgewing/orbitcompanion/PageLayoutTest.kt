@@ -85,6 +85,21 @@ class PageLayoutTest {
         layout(a)
     }
 
+    @Test
+    @Config(qualifiers = "w749dp-h998dp-port-xhdpi")
+    fun wrappedHomeChoiceKeepsEveryLineInsideItsSegment() {
+        val a = open<SettingsSectionActivity>(SettingsPage.section(app, "reading"))
+        layout(a)
+        val choice = all(a.window.decorView).filterIsInstance<TextView>()
+            .first { it.text.toString() == "Back to my book, then home" }
+        assertTrue("exercise the wrapped native label", choice.lineCount > 1)
+        assertTrue("the last line must fit inside the actual text viewport",
+            choice.layout.height <= choice.height - choice.compoundPaddingTop - choice.compoundPaddingBottom)
+        val row = choice.parent as ViewGroup
+        assertTrue("the segment must fit inside the row's clipping outline",
+            choice.bottom + row.paddingBottom <= row.height)
+    }
+
     private fun onScreenY(v: View): Int = IntArray(2).also { v.getLocationInWindow(it) }[1]
 
     private fun sleepPage(): SleepScreenActivity {

@@ -1,0 +1,23 @@
+{
+  "logic": 275,
+  "flows": 349,
+  "companion_tests": 1038,
+  "companion_skipped": 4,
+  "driver_safety": 18,
+  "ui_boundary": 6,
+  "server_boundary": 12,
+  "features": 4,
+  "native_reminders": 22,
+  "native_reminder_settings_sleep": 13,
+  "native_crash_summary": 10,
+  "stats_sizes_each_state": 34,
+  "resolution": [
+    1404,
+    1872
+  ],
+  "dpi": 300,
+  "synthetic_library_books": 64,
+  "statistics_base_days": 50,
+  "apk_sha256": "f5700a62ffa88e85f39bb42097680bf43f53eec318656aace56d45727265a75f",
+  "native_source_version": "0.11.3-rc.17"
+}

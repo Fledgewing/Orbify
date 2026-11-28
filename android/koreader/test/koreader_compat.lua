@@ -54,7 +54,7 @@ local NEEDS = {
     { "frontend/apps/reader/modules/readerrolling.lua", { "onGotoXPointer" } },
     { "frontend/document/koptinterface.lua", { "nativeToPageRectTransform" } },
 
-    { "frontend/device/android/device.lua", { {"home_dir", F} } },
+    { "frontend/device/android/device.lua", { {"home_dir", F}, {"android.isResumed()", T} } },
     -- Library's native reader-control adapter (pin documented in G-READER-NOTES.md).
     { "frontend/apps/reader/modules/readertoc.lua", { "onShowToc", {"toc", F} } },
     { "frontend/apps/reader/modules/readerannotation.lua", { {"annotations", F}, "getPageRef" } },

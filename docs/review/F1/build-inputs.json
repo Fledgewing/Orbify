@@ -1,0 +1,9 @@
+{
+  "matching_packaged_plugin_members": 162,
+  "fixture_only_injections": [
+    "orbit.koplugin/ko/companion.lua",
+    "orbit.koplugin/ko/library_reminders.lua",
+    "orbit.koplugin/main.lua"
+  ],
+  "plugin_zip_sha256": "ac36bf0d25ded8764e2cb307d07c57bb6d6c8b0af5ecef2d83855c46ab6a297d"
+}

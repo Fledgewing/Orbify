@@ -107,6 +107,12 @@ function StorageUI.create(mode,onCollection,onReturn,caps)
         self.dimen=Geom:new{w=Device.screen:getWidth(),h=Device.screen:getHeight()}
         self.key_events={Close={{"Back"}},Next={{"Down"}},Previous={{"Up"}},Select={{"Press"}}}
         self:rebuild()
+        self.onPublication=function(event)
+            if self.data and self.data.pending and self:visible() and (event.kind=="library" or event.kind=="library_source") then
+                self:rebuild();UIManager:setDirty(self,"ui")
+            end
+        end
+        self.unsubscribe=Library.observe(self.onPublication)
     end
     function Page:visible() return not self.closed and UIManager:getTopmostVisibleWidget()==self end
     function Page:rebuild()
@@ -254,9 +260,10 @@ function StorageUI.create(mode,onCollection,onReturn,caps)
     function Page:onSelect() self.controls[self.focus].callback(); return true end
     function Page:onCloseWidget()
         self.closed=true
+        if self.unsubscribe then self.unsubscribe();self.unsubscribe=nil end
         if self.pending_cancel then self.pending_cancel();self.pending_cancel=nil end
         if self.refresh then UIManager:unschedule(self.refresh); self.refresh=nil end
-        if StorageUI.active==self then StorageUI.active=nil end
+        if StorageUI.active==self then StorageUI.active=nil;Library.readingVisibilityChanged("storage-close") end
     end
     function Page:onClose() if self.closed then return true end; self:onCloseWidget(); UIManager:close(self); Library.changed({kind="storage"}); if onReturn then onReturn() end; return true end
     return Page:new{}
@@ -270,6 +277,7 @@ function StorageUI.show(mode,onCollection,onReturn,caps)
     if not ok then error(page) end
     StorageUI.active=page
     UIManager:show(page) -- gate: user action (Storage, Collections or Download folder)
+    Library.readingVisibilityChanged("storage")
     return page
 end
 function StorageUI.cacheLimit()

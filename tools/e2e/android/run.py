@@ -31,6 +31,19 @@ class Emulator:
         return self.adb("shell",*args).decode().strip()
     def push(self,path,destination):
         self.adb("push",path,destination)
+    def wait_driver(self,timeout=20):
+        # Reader -> FileManager retires one plugin instance before loading the
+        # next. Wait for that lifecycle boundary without replaying any UI action.
+        deadline=time.monotonic()+timeout
+        while True:
+            try:
+                self.command('return true')
+                return
+            except RuntimeError as error:
+                if not str(error).endswith('plugin not loaded'):raise
+                if time.monotonic()>=deadline:raise TimeoutError('plugin did not load after native navigation') from error
+                time.sleep(.2)
+
     def wait_companion(self,timeout=20):
         deadline=time.monotonic()+timeout
         while self.command('return Companion.workerProblem()==nil and "ready" or "pending"')!="ready":

@@ -15,6 +15,18 @@ interface ServerRuntime {
     fun nativeFooterRepair(before: String, after: String, token: String)
 }
 
+/** One publication satisfies identical requests while it is queued or running. */
+internal class PendingBatches {
+    private val pending=java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
+    fun submit(key:String, executor:java.util.concurrent.Executor, work:()->Unit):Boolean {
+        if(!pending.add(key)) return false
+        try {
+            executor.execute { try { work() } finally { pending.remove(key) } }
+        } catch(error:RuntimeException) { pending.remove(key);throw error }
+        return true
+    }
+}
+
 /** Command routing only. The selected adapter owns transport and all legacy protocol state. */
 object Worker {
     const val ACTION_STORAGE = "${Contract.PACKAGE}.action.STORAGE"
@@ -22,6 +34,7 @@ object Worker {
     const val ACTION_SQLITE_STRESS = "${Contract.PACKAGE}.action.SQLITE_STRESS"
     const val ACTION_PATCH = "${Contract.PACKAGE}.action.PATCH"
     const val CAP = "cache_worker"
+    private val deviceBatches=PendingBatches()
     fun localCommand(ctx: Context, op: String, args: Map<*, *>, done: (Map<String, Any?>?, String?) -> Unit) = ServerAdapters.runtime.localCommand(ctx,op,args,done)
     internal fun accountChanged(ctx: Context) = ServerAdapters.runtime.accountChanged(ctx)
     fun root() = File(Environment.getExternalStorageDirectory(), "koreader/settings/orbit-cache")
@@ -33,7 +46,7 @@ object Worker {
             val encoded=i.getStringExtra("library_batch")?.takeIf { it.length<=131072 } ?: return
             val app=ctx.applicationContext
             BulkWork.attach(app)
-            BulkWork.executor.execute {
+            deviceBatches.submit(encoded,BulkWork.executor) {
                 runCatching {
                     val requests=LuaValue.parse(LuaValue.str(encoded).toByteArray(Charsets.ISO_8859_1)) as? List<*> ?: return@runCatching
                     ServerAdapters.projectionStore(root()).use { store ->

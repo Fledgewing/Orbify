@@ -70,6 +70,8 @@ function RemindersUI.page(view,items,buttons,nav,pageSize)
         put(K.button{text="›",w=p(52),variant="outline",callback=nav[4].callback,enabled=nav[4].enabled},p(298),py,"next")
     end
     put(K.frame(K.canvas(sw,p(1)),{w=sw,h=p(1),ink=true}),0,sh-p(49));K.label(c,"Tap a choice",p(16),sh-p(33),p(300),12)
+    local stamp=K.text{text="BookSync "..PATCH_VERSION,w=p(250),size=12}
+    K.put(c,stamp,sw-p(16)-stamp:getSize().w,sh-p(33))
     local Input=require("ui/widget/container/inputcontainer"):extend{name="booksync_reminders",covers_fullscreen=true}
     function Input:onClose() view:back();return true end
     function Input:getButtonById(id) return widgets[id] end

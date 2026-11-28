@@ -217,7 +217,7 @@ Final build gallery: after `home.py`, `home_stats.py` and `reader_panels.py`, ru
 --approved-crops <approved-native-family-images>`. Use 1404×1872 at 300 dpi.
 It captures every listed reader/companion surface in both real fixture account states,
 uses the reminder service's injected clocks for actual due sheets, and verifies Android
-HOME while signed out, the MAIN/LAUNCHER icon route, and ten native open/tap-top/close/HOME
+HOME while signed out, an actual stock-launcher app-drawer icon tap, and ten native open/tap-top/close/HOME
 cycles. `user-path-logcat.txt` retains the complete log for those paths. Original
 native PNGs remain unchanged; comparison WebPs normalize only the approval crop.
 The builder retains both Home and ReminderClock fixtures. Identical pending fake
@@ -227,3 +227,25 @@ Reminder editors retain all draft fields plus Save/Delete on one page; only save
 lists page four rows. Due sheets preserve the one-use claim, gate and consumed-input
 contract while sharing kit type, actions and rounded sheet surfaces. Native companion
 reminder discoverability inherits `CompanionStyle` through the common row factory.
+
+Device-local publications coalesce identical queued/running batches as well as the
+fake adapter's batches. `PendingBatchesTest` checks duplicates during both phases,
+independent requests, failure and executor rejection; no failed request stays pinned.
+The native driver resolves the current Reader/FileManager's registered `orbit`
+module before consulting PluginLoader's transient registry. Its readiness wait
+probes only that instance and never replays navigation or suppresses other failures.
+Foreground gates use the native launcher activity scalar, with the pinned source
+and memo fallback documented in `docs/design/reading-gate.md`. This preserves
+hidden/sleeping denial across companion visits and reused native screen owners.
+The navigation proof closes the user-opened top panel with Android Back, then
+presses Home outside the documented two-second double-press window.
+
+The path probe observes native input restoration after the first book paint before
+sending its one top tap. It also waits for visible companion UI after the launcher
+transition; a warm launch may restore the existing companion settings task. Only
+the disposable image’s exact BookSync notification consent prompt is dismissed,
+using Don’t allow, so native captures retain the ungranted notification state.
+
+Segmented native settings rows disable baseline alignment so a wrapped Home choice
+fits inside the rounded outline alongside a one-line neighbour. The native-graphics
+PageLayoutTest reproduces the old clipped last line at the M8C logical width.

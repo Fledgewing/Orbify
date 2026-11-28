@@ -61,6 +61,7 @@ function FinishUI.showSheet(ui,b)
     FinishUI.closeSheet();FinishUI.card_state=nil
     FinishUI.sheet=EndSheet:new{ui=ui,book=b,model=FinishUI.model(b)}
     UIManager:show(FinishUI.sheet) -- gate: exception (the reader reached the end)
+    Library.readingVisibilityChanged("end-of-book")
     FinishUI.pollSheet(FinishUI.sheet)
 end
 function FinishUI.pollSheet(sheet)
@@ -81,7 +82,7 @@ function FinishUI.refreshSheet(ui,b)
 end
 function FinishUI.closeSheet()
     if FinishUI.sheet_retry then UIManager:unschedule(FinishUI.sheet_retry);FinishUI.sheet_retry=nil end
-    local s=FinishUI.sheet;FinishUI.sheet=nil;if s then UIManager:close(s) end
+    local s=FinishUI.sheet;FinishUI.sheet=nil;if s then UIManager:close(s);Library.readingVisibilityChanged("end-of-book-close") end
 end
 FinishUI.actions={}
 function FinishUI.actions.undo(ui,b) ui.status:markBook(false);FinishUI.refreshSheet(ui,b) end

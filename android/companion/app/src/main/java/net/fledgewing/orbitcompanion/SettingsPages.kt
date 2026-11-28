@@ -86,6 +86,9 @@ abstract class SettingsPage : EinkActivity() {
         rows.forEach { row ->
             val seg = LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL
+                // Equal-width labels may wrap differently; baseline alignment can
+                // shift a multiline label below the row's clipping outline.
+                isBaselineAligned = false
                 background = Ui.box(this@SettingsPage, Ui.PAPER)
                 clipToOutline = true
                 val pad = Ui.dp(this@SettingsPage, 2)

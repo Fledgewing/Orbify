@@ -12,6 +12,12 @@
 
 Jni = {}
 
+-- Native activity state, independent of which reader/Home/settings owner received
+-- the last Resume broadcast. The launcher helper only reads its lifecycle scalar.
+function Jni.isResumed()
+    if has_android and type(android.isResumed)=="function" then return android.isResumed() end
+end
+
 FLAG_INCLUDE_STOPPED_PACKAGES = 0x00000020
 FLAG_RECEIVER_FOREGROUND = 0x10000000
 FLAG_ACTIVITY_NEW_TASK = 0x10000000

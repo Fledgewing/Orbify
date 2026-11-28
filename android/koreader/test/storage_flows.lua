@@ -251,4 +251,37 @@ return function(test,eq,ok,E,W,withHost)
             h:onClose(); eq(h.list_layout,nil)
         end)
     end)
+    test('storage: a publication after the bounded polls refreshes only a visible pending page',function()
+        withHost(function()
+            local read=E.LibraryAdapter.read
+            local pending=true
+            E.LibraryAdapter.read=function(raw)
+                if E.Cache.decode(raw).op=='storage.summary' then return pending and {pending=true} or data(),700 end
+                return read(raw)
+            end
+            local page=E.StorageUI.show();page.attempts=6;page:rebuild()
+            local before=page[1];pending=false;W.shown={}
+            page.onPublication({kind='library'});eq(page[1],before);ok(page.data.pending)
+            W.shown={page};page.onPublication({kind='library'})
+            eq(page.data.pending,nil);eq(page.metrics.rows,1);ok(page[1]~=before)
+            local observer=page.onPublication;before=page[1];page:onClose()
+            eq(E.Library.observers[observer],nil)
+            observer({kind='library'});eq(page[1],before,'closed pages never redraw')
+        end)
+    end)
+
+    test('storage: entering and leaving publishes the existing reading visibility policy',function()
+        withHost(function()
+            local read,report,reading=E.LibraryAdapter.read,E.Library.readingVisibilityChanged,E.reading
+            local reports={}
+            E.LibraryAdapter.read=function(raw) if E.Cache.decode(raw).op=='storage.summary' then return data(),700 end;return read(raw) end
+            E.reading=function() return E.StorageUI.active==nil end
+            E.Library.readingVisibilityChanged=function(reason) reports[#reports+1]={reason,E.reading()} end
+            local page=E.StorageUI.show();page:onClose()
+            eq(reports[1][1],'storage');eq(reports[1][2],false)
+            eq(reports[2][1],'storage-close');eq(reports[2][2],true)
+            E.Library.readingVisibilityChanged,E.reading=report,reading
+        end)
+    end)
+
 end

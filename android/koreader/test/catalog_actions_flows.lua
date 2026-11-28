@@ -65,6 +65,18 @@ test("catalog actions: finish snapshot paint is bounded and contains no catalog 
     end)
     E.LibraryAdapter=adapter;if not success then error(why) end
 end) end)
+test("catalog actions: end-sheet visibility unpauses work, and returning to the page restores reading",function() isolated(function()
+    local ui,m,b=fixture()
+    local model,report=E.FinishUI.model,E.Library.readingVisibilityChanged
+    local reports={}
+    E.FinishUI.model=function() return {title="Finished",status="Saved"} end
+    E.reading=function() return E.FinishUI.sheet==nil end
+    E.Library.readingVisibilityChanged=function(reason) reports[#reports+1]={reason,E.reading()} end
+    E.FinishUI.showSheet(ui,b);E.FinishUI.closeSheet()
+    eq(reports[1][1],"end-of-book");eq(reports[1][2],false)
+    eq(reports[2][1],"end-of-book-close");eq(reports[2][2],true)
+    E.FinishUI.model,E.Library.readingVisibilityChanged=model,report
+end) end)
 test("catalog actions: closing a pending finish sheet cancels polling and stale callbacks stay inert",function() isolated(function()
     local model=E.FinishUI.model;local calls=0
     E.FinishUI.model=function() calls=calls+1;error("closed sheet must not request data") end
