@@ -177,6 +177,28 @@ return function(test,eq,ok,E,W,Widget)
         end)
     end)
 
+    test("Reminders unknown clock: warning is scoped to time and connection uses the existing companion route",function()
+        withUI(function()
+            local list,render,open=E.Library.reminders.list,E.RemindersUI.page,E.Library.companion.openStatus
+            local calls=0
+            E.RemindersUI.page=function() return Widget:new{} end
+            E.Library.reminders.list=function(done) done({clockStatus="unknown",timeCount=1,items={
+                {kind="interval",title="Rest your eyes",enabled=true,editable=true},
+                {kind="time",title="9:00 PM",detail="Every day",enabled=true,editable=true}}}) end
+            E.Library.companion.openStatus=function() calls=calls+1 end
+            local success,why=pcall(function()
+                local v=E.RemindersUI.open();local rows=v.make()
+                eq(#rows,4);eq(rows[1].note_func(),"Uses reading time; no clock needed")
+                ok(rows[1].kitWarning:find("Reminders need the time",1,true))
+                eq(rows[2].note_func(),"Every day · Waiting for time")
+                eq(rows[3].text,"Connect to Wi-Fi");rows[3].callback();eq(calls,1)
+                eq(v.make()[2].note_func(),"Every day · Waiting for time","opening controls cannot claim clock recovery")
+            end)
+            E.Library.reminders.list,E.RemindersUI.page,E.Library.companion.openStatus=list,render,open
+            ok(success,why)
+        end)
+    end)
+
     test("Foreground gate: native activity state wins over a stale owner Resume memo",function()
         local native,wifi=E.Jni.isResumed,E.Wifi.state
         local success,why=pcall(function()

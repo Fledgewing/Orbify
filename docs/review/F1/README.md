@@ -2,18 +2,19 @@
 
 Approved mockup left; actual native M8C emulator capture right. Both account states
 use 1404×1872 at 300 dpi, the compiled fake ServerAdapter, 64 synthetic books with
-covers/series/progress, a 50-day base statistics DB and MD5-linked native book history.
+covers/series/progress, a 50-day base statistics DB and native book annotations/history fixtures.
 Original lossless PNGs and the full navigation logcat remain in the local gallery.
 No physical device, release workflow, tag or updater publication was used.
 
 The source version label remains the branch’s shared/version.json (0.11.3-rc.17).
 This is the 0.12.1 feature set; release identity is left to the maintainer.
 
-Validation: 275 Lua logic tests; 349 Lua flows; 1,038 companion tests (four existing
+Validation: 275 Lua logic tests; 352 Lua flows; 1,038 companion tests (four existing
 skips), verifySharedVersion, assembleDebug and lintDebug; 18 driver safety tests;
 UI/server boundary and feature checks; pinned KOReader compatibility. Native
 acceptance passed 22 reminder checks, 13 settings/Sleep checks, 10 crash-summary
-checks, and all 34 Stats/Battery sizes in empty and seeded states. See checks.json.
+checks, and all 34 Stats/Battery sizes in empty and seeded states. See checks.json. The Time picker also passes six actual-touch/discard checks
+([receipt](proof/time-picker-touch.json)).
 
 The navigation receipt proves signed-out Android Home reaches BookSync Home,
 a real stock-launcher app-drawer icon tap opens the companion, and ten consecutive
@@ -25,11 +26,16 @@ open/tap-top/Back-to-close-panel/Home cycles complete without a crash.
 
 Remaining differences: bundled Noto fonts replace proprietary mockup fonts;
 native font/SVG rasterization, Android system chrome and keyboard differ.
-Synthetic book art, counts, pagination, progress and statistics differ. Server-only
+Synthetic book art, counts, pagination, progress and statistics differ. Some
+native per-book estimates are unavailable where the fixture has no published
+per-book snapshot; the seeded 50-day Home statistics remain populated. Server-only
 shelves are absent while signed out. Battery has no physical measurements.
 The reminder approval uses a taller 480×800 review viewport; layout follows M8C
 width and retains every action. Sleep is unavailable in the main gallery without
 native permission; the additional native suite granted it and verified Sleep/wake.
+The Unknown-clock screen is a labelled Library provider-error fixture; Android
+trusts the OS clock. Connect to Wi-Fi opens the existing companion controls
+without claiming time sync. All nine Android reminder approvals are represented.
 Sections without a dedicated approval crop use the explicitly labelled parent
 Settings reference. Companion sections follow their approved native inventory.
 
@@ -162,6 +168,18 @@ Approved 480×800 reminder viewport adapted to the wider M8C panel; fonts use bu
 Approved 480×800 reminder viewport adapted to the wider M8C panel; fonts use bundled Noto and native rasterization. Due sheet preserves the real book. Sleep remains unavailable unless Android grants screen-off permission.
 
 ![reminder-sheet](pairs/signed-out-reminder-sheet.webp)
+
+### reminder-time
+
+Approved 480×800 reminder viewport adapted to the wider M8C panel; fonts use bundled Noto and native rasterization. Due sheet preserves the real book. Sleep remains unavailable unless Android grants screen-off permission.
+
+![reminder-time](pairs/signed-out-reminder-time.webp)
+
+### reminder-unknown-clock
+
+Approved 480×800 reminder viewport adapted to the wider M8C panel; fonts use bundled Noto and native rasterization. Due sheet preserves the real book. Sleep remains unavailable unless Android grants screen-off permission. Unknown-clock provider-error fixture: Android trusts the OS clock. Connect to Wi-Fi opens the existing companion Wi-Fi controls; it does not claim time sync.
+
+![reminder-unknown-clock](pairs/signed-out-reminder-unknown-clock.webp)
 
 ### reminders
 
@@ -397,6 +415,18 @@ Approved 480×800 reminder viewport adapted to the wider M8C panel; fonts use bu
 
 ![reminder-sheet](pairs/signed-in-reminder-sheet.webp)
 
+### reminder-time
+
+Approved 480×800 reminder viewport adapted to the wider M8C panel; fonts use bundled Noto and native rasterization. Due sheet preserves the real book. Sleep remains unavailable unless Android grants screen-off permission.
+
+![reminder-time](pairs/signed-in-reminder-time.webp)
+
+### reminder-unknown-clock
+
+Approved 480×800 reminder viewport adapted to the wider M8C panel; fonts use bundled Noto and native rasterization. Due sheet preserves the real book. Sleep remains unavailable unless Android grants screen-off permission. Unknown-clock provider-error fixture: Android trusts the OS clock. Connect to Wi-Fi opens the existing companion Wi-Fi controls; it does not claim time sync.
+
+![reminder-unknown-clock](pairs/signed-in-reminder-unknown-clock.webp)
+
 ### reminders
 
 Approved 480×800 reminder viewport adapted to the wider M8C panel; fonts use bundled Noto and native rasterization. Due sheet preserves the real book. Sleep remains unavailable unless Android grants screen-off permission.
@@ -500,4 +530,3 @@ Parent Settings reference: no dedicated approved crop exists for this section.
 ### storage
 
 ![storage](pairs/signed-in-storage.webp)
-

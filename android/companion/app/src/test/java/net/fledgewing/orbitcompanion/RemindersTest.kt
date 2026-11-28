@@ -352,6 +352,7 @@ class RemindersTest {
     }
     @Test fun formattingIsDisplayOnlyAndBounded() {
         val f=Fixture();repeat(8) {f.add(1260,message="😀".repeat(60))};val before=f.store.state
+        assertEquals(true,f.service.snapshot(true)["twelveHour"]);assertEquals(false,f.service.snapshot(false)["twelveHour"])
         assertTrue(f.service.snapshot(true,java.util.Locale.US).toString().contains("9:00 PM"))
         assertTrue(f.service.snapshot(false).toString().contains("21:00"));assertEquals(before,f.store.state)
         assertTrue(LuaValue.encode(f.service.snapshot(false)).size<=8192)

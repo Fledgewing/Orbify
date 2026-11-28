@@ -101,7 +101,8 @@ def review(device,out):
     device.command('RemindersUI.open();return true')
     wait('return SettingsView.active.make()[2] and SettingsView.active.make()[2].text:find("M",1,true) and "ready" or "pending"')
     row(2);row(2)
-    check('twelve-hour-time-input','local d;for _,w in ipairs(UI._window_stack) do if w.widget.getInputText then d=w.widget end end;assert(d and d:getInputText():find("M",1,true));d.buttons[1][1].callback();return true')
+    check('twelve-hour-time-input','assert(RemindersUI.timeDialog and RemindersUI.timeDialog:getInputText():find("M",1,true));return true')
+    device.command('RemindersUI.timeDialog:onClose();return true')
     close();device.shell('settings','put','system','time_12_24','24')
     # Render-only future/error fakes remain behind the Library surface. No future provider
     # registers, no credentials exist, and service mutation rejection is covered on the JVM.
@@ -112,7 +113,7 @@ def review(device,out):
     device.command('Library.reminders.list=function(done) done({error="storage"});return true end;RemindersUI.open();return true')
     check('unreadable-store-settings-only','assert(SettingsView.active.make()[1].text=="Reminders could not be loaded");return true');close()
     device.command('Library.reminders.list=function(done) done({items={{kind="interval",id="local:eye-rest",revision=1,enabled=false,editable=true,title="Rest your eyes",detail="Every 20 minutes of reading"}},timeCount=0,clockStatus="unknown",notice="Previous reminders recovered"});return true end;RemindersUI.open();return true')
-    check('recovered-and-unknown-clock','local rows=SettingsView.active.make();assert(rows[1].text=="Previous reminders recovered");assert(rows[2].text=="Reminders need the time. Connect to Wi-Fi once to set the clock.");assert(rows[3].note_func()=="Uses reading time; no clock needed");return true');close()
+    check('recovered-and-unknown-clock','local rows=SettingsView.active.make();assert(rows[1].text=="Previous reminders recovered");assert(rows[2].kitWarning=="Reminders need the time. Connect to Wi-Fi once to set the clock.");assert(rows[2].note_func()=="Uses reading time; no clock needed");return true');close()
     device.command('Library.reminders.list=Library._realReminderList;return true');clear()
     # This test-only APK permits removal of its synthetic device administrator afterwards.
     device.shell('dpm','set-active-admin','net.fledgewing.orbitcompanion/.AdminReceiver')

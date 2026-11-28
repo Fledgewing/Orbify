@@ -51,6 +51,11 @@ function RemindersUI.page(view,items,buttons,nav,pageSize)
                 end
                 local hit=K.hit(rc,{w=p(444),h=h,text=b.text,callback=b.callback,enabled=b.enabled})
                 put(hit,p(18),y,b.id);y=y+h;rule(y)
+                if row.kitWarning then
+                    local wc=K.canvas(p(444),p(78))
+                    paragraph(wc,row.kitWarning,p(14),p(14),p(416),14)
+                    put(K.frame(wc,{w=p(444),h=p(78),border=p(1)}),p(18),y+p(8));y=y+p(94)
+                end
             end
         end
     end
@@ -120,6 +125,86 @@ function RemindersUI.sheet(o)
     function Input:onSwipe() o.dismiss();return true end
     function Input:onPan() return true end
     return Input:new{dimen=require("ui/geometry"):new{w=sw,h=sh},buttons=o.buttons,ges_events={TapClose={require("ui/gesturerange"):new{ges="tap",range=require("ui/geometry"):new{w=sw,h=sh}}}},overlay}
+end
+
+-- Editing only: the companion still validates and formats the submitted draft.
+function RemindersUI.timeDraft(minute,twelve)
+    local hour=math.floor((minute or 1260)/60)
+    local model={hour=string.format("%02d",twelve and ((hour+11)%12+1) or hour),minute=string.format("%02d",(minute or 1260)%60),twelve=twelve==true,pm=hour>=12,field="hour",fresh=true}
+    function model:select(field) self.field=field;self.fresh=true end
+    function model:key(key)
+        if key=="period" then self.pm=not self.pm;return end
+        if key=="backspace" then self[self.field]=self[self.field]:sub(1,-2);self.fresh=false;return end
+        if not key:match("^%d$") then return end
+        local value=self[self.field]
+        self[self.field]=(self.fresh or #value>=2) and key or value..key;self.fresh=false
+        if #self[self.field]==2 and self.field=="hour" then self:select("minute") end
+    end
+    function model:text()
+        local h,m=tonumber(self.hour),tonumber(self.minute)
+        if not h or not m or m>59 or h>(self.twelve and 12 or 23) or h<(self.twelve and 1 or 0) then return nil end
+        return string.format("%02d:%02d",h,m)..(self.twelve and (self.pm and " PM" or " AM") or "")
+    end
+    return model
+end
+function RemindersUI.timePicker(minute,twelve,done)
+    local K=BookSyncUI.new(Device.screen:getWidth()/480);local p=K.px
+    local sw,sh=Device.screen:getWidth(),Device.screen:getHeight()
+    local Input=require("ui/widget/container/inputcontainer"):extend{name="booksync_reminder_time",covers_fullscreen=true,modal=true,stop_events_propagation=true}
+    local model=RemindersUI.timeDraft(minute,twelve)
+    function Input:onClose()
+        if self.closed then return true end
+        self.closed=true;if RemindersUI.timeDialog==self then RemindersUI.timeDialog=nil end
+        UIManager:close(self);return true
+    end
+    function Input:getInputText() return self.model:text() end
+    function Input:getButtonById(id) return self.controls[id] end
+    function Input:submit()
+        if self.closed then return false end
+        local text=self.model:text();if not text then return false end
+        self:onClose();done(text);return true
+    end
+    function Input:rebuild()
+        local c=K.canvas(sw,sh);self.controls={}
+        local function button(id,text,x,y,w,h,action,opts)
+            opts=opts or {};opts.text,opts.w,opts.h=text,p(w),p(h);opts.callback=action
+            opts.size=opts.size or 16;opts.variant=opts.variant or "outline"
+            local b=K.button(opts)
+            if opts.border then b[1].bordersize=opts.border;b[1].padding=-opts.border end
+            K.put(c,b,p(x),y);self.controls[id]=b
+        end
+        button("back","‹ Back",16,p(10),84,40,function() self:onClose() end,{size=14})
+        K.label(c,"BookSync",p(116),p(10),p(340),18,{bold=true});K.label(c,"Reader settings",p(116),p(33),p(340),12)
+        K.put(c,K.frame(K.canvas(sw,p(1)),{w=sw,h=p(1),ink=true}),0,p(60))
+        K.label(c,"Time",p(18),p(94),p(444),28,{serif=true,bold=true})
+        K.label(c,"When should this reminder appear?",p(18),p(143),p(444),16)
+        local function select(field) self.model:select(field);self:rebuild() end
+        local x=self.model.twelve and 100 or 142
+        for i,field in ipairs({"hour","minute"}) do
+            button(field,self.model[field]=="" and "—" or string.format("%02d",tonumber(self.model[field])),x+(i-1)*122,p(184),78,74,function() select(field) end,
+                {radius=p(8),size=38,border=p(self.model.field==field and 2 or 1)})
+        end
+        K.label(c,":",p(x+92),p(188),p(28),36,{bold=true})
+        if self.model.twelve then button("period",self.model.pm and "PM" or "AM",344,p(195),76,50,function() self.model:key("period");self:rebuild() end,{radius=p(6),size=20}) end
+        K.label(c,self.model.twelve and "12-hour time" or "24-hour time",p(18),p(278),p(444),14)
+        K.label(c,"Tap a field to enter digits.",p(18),p(310),p(444),14)
+        button("done","Done",18,p(345),444,51,function() self:submit() end,{variant="solid",enabled=self.model:text()~=nil,size=17})
+        self.keypad_h=p(224);self.keypad_y=sh-self.keypad_h
+        K.put(c,K.frame(K.canvas(sw,p(1)),{w=sw,h=p(1),ink=true}),0,self.keypad_y)
+        local keys={"1","2","3","4","5","6","7","8","9","backspace","0","done-key"}
+        for i,key in ipairs(keys) do
+            local action=key=="done-key" and function() self:submit() end or function() self.model:key(key);self:rebuild() end
+            button("key-"..key,key=="backspace" and "‹" or key=="done-key" and "Done" or key,18+((i-1)%3)*150,self.keypad_y+p(16+math.floor((i-1)/3)*50),144,45,action,
+                {radius=p(4),size=16,enabled=key~="done-key" or self.model:text()~=nil})
+        end
+        local previous=self[1];self[1]=K.frame(c,{w=sw,h=sh});if previous and previous.free then previous:free() end
+        UIManager:setDirty(self,"ui")
+    end
+    local dialog=Input:new{dimen=require("ui/geometry"):new{w=sw,h=sh},key_events={Close={{"Back"}},Select={{"Press"}}},model=model}
+    function dialog:onSelect() self:submit();return true end
+    dialog:rebuild();RemindersUI.timeDialog=dialog
+    UIManager:show(dialog) -- gate: user action (reminder time draft; Back discards)
+    return dialog
 end
 
 function RemindersUI.open()
@@ -212,7 +297,7 @@ function RemindersUI.open()
                 end}
             else
                 rows[#rows+1]={text="Time · "..(draft.title or "21:00"),kitText="Time",kitDetail=draft.title or "21:00",callback=function()
-                    input("Time",draft.title,function(text) preview(draft,text) end)
+                    RemindersUI.timePicker(draft.minuteOfDay,saved.twelveHour,function(text) preview(draft,text) end)
                 end}
                 rows[#rows+1]={text="Days · "..(draft.detail or "Every day"),kitText="Days",kitDetail=draft.detail or "Every day",callback=days}
                 rows[#rows+1]={text="Message · "..(draft.message and draft.message~="" and draft.message or "Time to stop reading"),kitText="Message",kitSub=draft.message and draft.message~="" and draft.message or "Time to stop reading",height=71,multiline=true,callback=function()
@@ -248,12 +333,13 @@ function RemindersUI.open()
         if saved.error then return {{text=saved.problem or "Reminders could not be loaded",enabled=false},{text="Retry",callback=function() reload(true) end}} end
         local rows={}
         if saved.notice then rows[#rows+1]={text=saved.notice,enabled=false} end
-        if saved.clockStatus=="unknown" then rows[#rows+1]={text="Reminders need the time. Connect to Wi-Fi once to set the clock.",enabled=false,height=96} end
         for _,row in ipairs(saved.items or {}) do
             rows[#rows+1]={text=(row.title or "Reminder").." — "..(row.enabled and "On" or "Off"),kitText=row.title or "Reminder",kitDetail=row.enabled and "On" or "Off",
-                note_func=function() return row.kind=="interval" and (saved.clockStatus=="unknown" and "Uses reading time; no clock needed" or row.detail) or (row.detail or "").." · "..(row.message and row.message~="" and row.message or "Time to stop reading") end,callback=function() editor(row,false) end}
+                kitWarning=row.kind=="interval" and saved.clockStatus=="unknown" and "Reminders need the time. Connect to Wi-Fi once to set the clock." or nil,
+                note_func=function() return row.kind=="interval" and (saved.clockStatus=="unknown" and "Uses reading time; no clock needed" or row.detail) or (row.detail or "").." · "..(saved.clockStatus=="unknown" and "Waiting for time" or row.message and row.message~="" and row.message or "Time to stop reading") end,callback=function() editor(row,false) end}
         end
         if saved.timeCount==0 then rows[#rows+1]={text="No bedtime reminders",enabled=false} end
+        if saved.clockStatus=="unknown" then rows[#rows+1]={text="Connect to Wi-Fi",action=true,primary=true,callback=function() Library.companion.openStatus() end} end
         local full=(saved.timeCount or 0)>=8
         rows[#rows+1]={text=full and "8 bedtime reminders — limit reached" or "Add bedtime reminder",kitText=full and "8 bedtime reminders — limit reached" or "Add reminder",action=true,enabled=not full,callback=function()
             Library.reminders.draft({kind="time",enabled=true,minuteOfDay=1260,days=127,message=""},function(result)
@@ -263,7 +349,7 @@ function RemindersUI.open()
         end}
         return rows
     end,"reminders-list")
-    view.reminderMeta=function() if not saved.pending and not saved.error then return tostring(saved.timeCount or 0).." bedtime reminders · On this device" end end
+    view.reminderMeta=function() if not saved.pending and not saved.error and saved.clockStatus~="unknown" then return tostring(saved.timeCount or 0).." bedtime reminders · On this device" end end
     reload();return view
 end
 function RemindersUI.closeSheet()

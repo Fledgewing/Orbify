@@ -19,6 +19,7 @@ from run import Emulator
 
 def review(device,out):
     out.mkdir(parents=True,exist_ok=True)
+    device.shell("settings","put","system","time_12_24","24")
     checks=[]
     zone=ZoneInfo(device.shell("getprop","persist.sys.timezone") or "UTC")
     wall=int(datetime(2026,11,27,20,0,tzinfo=zone).timestamp()*1000)
@@ -112,7 +113,7 @@ def review(device,out):
     row(3)
     wait('return SettingsView.active.title=="Add bedtime reminder" and "ready" or "pending"')
     row(2)
-    check('time-keyboard-docked','local input;for _,w in ipairs(UI._window_stack) do if w.widget.setInputText then input=w.widget end end;assert(input);local d=input._input_widget:getKeyboardDimen();assert(d.y+d.h==Device.screen:getHeight());input:setInputText("20:01");input.buttons[1][2].callback();return true')
+    check('time-keyboard-docked','local input=RemindersUI.timeDialog;assert(input and input.keypad_y+input.keypad_h==Device.screen:getHeight());for _,key in ipairs({"2","0","0","1"}) do input:getButtonById("key-"..key).callback() end;assert(input:getInputText()=="20:01");input:submit();return true')
     wait('return SettingsView.active.make()[2].text:find("20:01",1,true) and "ready" or "pending"')
     row(4)
     check('message-keyboard-docked','local input;for _,w in ipairs(UI._window_stack) do if w.widget.setInputText then input=w.widget end end;assert(input);local d=input._input_widget:getKeyboardDimen();assert(d.y+d.h==Device.screen:getHeight());input:setInputText("Time for a break");input.buttons[1][2].callback();return true')

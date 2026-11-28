@@ -70,7 +70,7 @@ survive sign-out. UI renders labels; the service formats dates, days and times.
 
 | Library operation | Input and bounded result |
 |---|---|
-| `reminders.list` | Immutable revision, at most 8 time rows plus the singleton interval row, clock status scoped to time reminders, per-kind count/limit, ready/pending/error/recovered state. One bounded snapshot. |
+| `reminders.list` | Immutable revision, at most 8 time rows plus the singleton interval row, clock status scoped to time reminders, per-kind count/limit, ready/pending/error/recovered state. One bounded snapshot, including the companion’s immutable `twelveHour` display preference. |
 | `reminders.add` | Local time-reminder fields + idempotency key → durable ID/revision or validation/limit/storage error. UI cannot choose a source. |
 | `reminders.edit` | ID, expected revision, complete kind-specific local fields, idempotency key → durable revision or conflict/error. |
 | `reminders.setEnabled` | ID, expected revision, boolean, idempotency key → same result semantics. |
@@ -502,3 +502,18 @@ the companion information row) pass the same 1500/1200/390 px clipping, overflow
 anchor, page-error and bottom-keyboard checks. The new Off/On settings, editor,
 interval picker, page sheet, Turn off failure and future managed sheet are **APPROVED (2026-11-27)**. Representative eye-rest renders were visually inspected.
 Repository branding, feature-reference checks and `git diff --check` pass.
+
+### Shared-kit time editor
+
+The Android editor uses the snapshot’s `twelveHour` preference, separate hour and
+minute fields, an AM/PM toggle when applicable and a docked numeric keypad. Field
+selection replaces digits; Back discards the picker. Done sends a canonical draft
+through the companion validator; the outer Save remains the only durable edit.
+No OS format lookup, file access or schedule evaluation runs in the drawn page.
+The companion still rejects invalid hours/minutes and owns localized formatting.
+
+The approved Unknown clock screen is also exercised as a disposable Library
+provider-error fixture. Android continues to trust the OS clock, as above; this
+fixture proves presentation and does not add a clock-fault detector or claim
+recovery. Its Connect to Wi-Fi action opens the companion’s existing manual Wi-Fi
+controls. It never initiates OS time setting or displays a time-sync success.

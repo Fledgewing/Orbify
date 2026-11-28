@@ -1,6 +1,6 @@
 {
   "logic": 275,
-  "flows": 349,
+  "flows": 352,
   "companion_tests": 1038,
   "companion_skipped": 4,
   "driver_safety": 18,
@@ -18,6 +18,9 @@
   "dpi": 300,
   "synthetic_library_books": 64,
   "statistics_base_days": 50,
-  "apk_sha256": "f5700a62ffa88e85f39bb42097680bf43f53eec318656aace56d45727265a75f",
-  "native_source_version": "0.11.3-rc.17"
+  "apk_sha256": "5721cccfc6a5f6c12c0c84562a37f937340cb6b51f3fb9bf927d20cbb4c8905a",
+  "native_source_version": "0.11.3-rc.17",
+  "native_time_picker_touch": 6,
+  "logcat_capture": "continuous, all buffers, threadtime",
+  "logcat_bytes": 1148271
 }

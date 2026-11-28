@@ -277,7 +277,7 @@ class Reminders(private val store: Store, private val wall: () -> Long,
     fun snapshot(twelveHour: Boolean, locale: Locale = Locale.getDefault()): Map<String,Any?> {
         check(storageReady())
         val rows=state.records.map {presentation(it,twelveHour,locale)}
-        val result=mapOf("revision" to state.generation,"items" to rows,"clockStatus" to if(runtime?.knownClock!=false) "known" else "unknown", "timeLimit" to 8,"timeCount" to state.records.count {it.kind=="time"},"state" to "ready")
+        val result=mapOf("revision" to state.generation,"twelveHour" to twelveHour,"items" to rows,"clockStatus" to if(runtime?.knownClock!=false) "known" else "unknown", "timeLimit" to 8,"timeCount" to state.records.count {it.kind=="time"},"state" to "ready")
         check(LuaValue.encode(result).size<=8192)
         return result
     }

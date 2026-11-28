@@ -14,6 +14,7 @@ import re
 import sys
 import tempfile
 import struct
+import subprocess
 from datetime import datetime
 from zoneinfo import ZoneInfo
 import time
@@ -23,7 +24,7 @@ sys.dont_write_bytecode = True
 from run import Emulator, ROOT, PACKAGE
 
 
-CLEAN = '''ReaderPanel.close();FinishUI.closeSheet();if AccountView.active then AccountView.active:close() end;
+CLEAN = '''if RemindersUI.timeDialog then RemindersUI.timeDialog:onClose() end;ReaderPanel.close();FinishUI.closeSheet();if AccountView.active then AccountView.active:close() end;
 if ReaderCompanionView.active then ReaderCompanionView.active:close() end;
 while SettingsView.active do local v=SettingsView.active;v.onBack=nil;v:close() end;'''
 BOOK = '/storage/emulated/0/Books/060 The Lantern Room.epub'
@@ -46,6 +47,8 @@ REMINDERS = {
     'reminder-sheet':'rem-Reminder_over_the_page-and.png',
     'rest-eyes-sheet':'rem-Rest_your_eyes_over_the_page-and.png',
     'missed-reminder':'rem-Missed_reminder-and.png',
+    'reminder-time':'rem-Time_picker_12_hour-and.png',
+    'reminder-unknown-clock':'rem-Unknown_clock-and.png',
 }
 NATIVE_REFS = {'companion-status':'launcher.png', 'checklist':'checklist-0.png',
                'companion-settings':'settings.webp', 'companion-reading':'settings-reading.webp',
@@ -174,11 +177,23 @@ def capture_tail(d,out,state,shot,native_shot):
     d.shell('settings','put','system','time_12_24','12')
     shot('reminders','RemindersUI.open()', 'return not SettingsView.active.make()[1].pending and #SettingsView.active.make()>=4 and "ready" or "pending"')
     shot('reminder-editor','SettingsView.active.dialog.buttons[2][1].callback()')
+    shot('reminder-time','SettingsView.active.dialog.buttons[2][1].callback()', 'return RemindersUI.timeDialog and "ready" or "pending"')
+    d.command('RemindersUI.timeDialog:onClose();return true')
     d.command('SettingsView.active:close();return true')
     shot('rest-eyes-settings','SettingsView.active.dialog.buttons[1][1].callback()')
     shot('rest-eyes-interval','SettingsView.active.dialog.buttons[2][1].callback()')
     d.command(CLEAN+'return true')
+    unknown_clock_capture(d,shot)
+    d.command(CLEAN+'return true')
     capture_native_tail(d,native_shot)
+
+
+def unknown_clock_capture(d,shot):
+    # Android trusts its OS clock. This approved provider-error state is a
+    # disposable Library fixture; it claims neither a clock fault nor recovery.
+    d.command('Library._galleryList=Library.reminders.list;Library.reminders.list=function(done) done({items={{kind="interval",enabled=true,editable=true,title="Rest your eyes",detail="Every 20 minutes of reading"},{kind="time",enabled=true,editable=true,title="9:00 PM",detail="Every day",message="Time to stop reading"}},timeCount=1,clockStatus="unknown"}) end;RemindersUI.open();return true')
+    try:shot('reminder-unknown-clock')
+    finally:d.command('Library.reminders.list=Library._galleryList;Library._galleryList=nil;return true')
 
 
 def capture_native_tail(d,native_shot):
@@ -321,8 +336,13 @@ def user_path(d,out):
     wait(d,'return AccountView.active.busy and "pending" or "ready"')
     d.command('AccountView.active:close();HomeHost.active:dispatch("book",{local_path='+json.dumps(BOOK)+'});return true')
     wait(d,'return inBook() and not HomeHost.foreground() and "ready" or "pending"')
-    d.adb('logcat','-c')
+    d.adb('logcat','-b','all','-c')
     events=[]
+    log_stream=log.open('wb')
+    try:
+        logger=subprocess.Popen(['adb','-s',d.serial,'logcat','-b','all','-v','threadtime'],stdout=log_stream,stderr=subprocess.STDOUT)
+    except BaseException:
+        log_stream.close();raise
     try:
         d.shell('input','keyevent','KEYCODE_HOME');time.sleep(1)
         wait(d,'return HomeHost.foreground() and "ready" or "pending"')
@@ -349,8 +369,13 @@ def user_path(d,out):
             print(events[-1],flush=True)
         events.append('10/10 cycles completed')
     finally:
-        log.write_bytes(d.adb('logcat','-d','-v','threadtime'))
+        capture_alive=logger.poll() is None
+        logger.terminate()
+        try:logger.wait(timeout=10)
+        except subprocess.TimeoutExpired:logger.kill();logger.wait(timeout=10)
+        log_stream.close()
         (out/'user-path.json').write_text(json.dumps(events,indent=2)+'\n')
+    assert capture_alive,'continuous logcat ended before the path completed'
     data=log.read_text(errors='replace')
     assert 'FATAL EXCEPTION' not in data
     assert 'Fatal signal' not in data
@@ -369,6 +394,7 @@ def gallery(out,reminder_crops,approved_crops):
                 reference=reminder_crops/REMINDERS[name]
                 approved=Image.open(reference).convert('RGB').crop((12,15,319,527))
                 note='Approved 480×800 reminder viewport adapted to the wider M8C panel; fonts use bundled Noto and native rasterization. Due sheet preserves the real book. Sleep remains unavailable unless Android grants screen-off permission.'
+                if name=='reminder-unknown-clock':note+=' Unknown-clock provider-error fixture: Android trusts the OS clock. Connect to Wi-Fi opens the existing companion Wi-Fi controls; it does not claim time sync.'
             else:
                 key=name
                 reference=approved_crops/NATIVE_REFS[key] if key in NATIVE_REFS else refs/(('m8c-server-signed-in.webp' if state=='signed-in' else 'm8c-server-signed-out.webp') if key=='account' else REFERENCES.get(key,'m8c-settings.webp'))

@@ -183,6 +183,20 @@
   },
   {
     "state": "signed-out",
+    "screen": "reminder-time",
+    "pair": "pairs/signed-out-reminder-time.webp",
+    "reference": "rem-Time_picker_12_hour-and.png",
+    "note": "Approved 480\u00d7800 reminder viewport adapted to the wider M8C panel; fonts use bundled Noto and native rasterization. Due sheet preserves the real book. Sleep remains unavailable unless Android grants screen-off permission."
+  },
+  {
+    "state": "signed-out",
+    "screen": "reminder-unknown-clock",
+    "pair": "pairs/signed-out-reminder-unknown-clock.webp",
+    "reference": "rem-Unknown_clock-and.png",
+    "note": "Approved 480\u00d7800 reminder viewport adapted to the wider M8C panel; fonts use bundled Noto and native rasterization. Due sheet preserves the real book. Sleep remains unavailable unless Android grants screen-off permission. Unknown-clock provider-error fixture: Android trusts the OS clock. Connect to Wi-Fi opens the existing companion Wi-Fi controls; it does not claim time sync."
+  },
+  {
+    "state": "signed-out",
     "screen": "reminders",
     "pair": "pairs/signed-out-reminders.webp",
     "reference": "rem-Saved_reminders_On_and_Off-and.png",
@@ -502,6 +516,20 @@
     "pair": "pairs/signed-in-reminder-sheet.webp",
     "reference": "rem-Reminder_over_the_page-and.png",
     "note": "Approved 480\u00d7800 reminder viewport adapted to the wider M8C panel; fonts use bundled Noto and native rasterization. Due sheet preserves the real book. Sleep remains unavailable unless Android grants screen-off permission."
+  },
+  {
+    "state": "signed-in",
+    "screen": "reminder-time",
+    "pair": "pairs/signed-in-reminder-time.webp",
+    "reference": "rem-Time_picker_12_hour-and.png",
+    "note": "Approved 480\u00d7800 reminder viewport adapted to the wider M8C panel; fonts use bundled Noto and native rasterization. Due sheet preserves the real book. Sleep remains unavailable unless Android grants screen-off permission."
+  },
+  {
+    "state": "signed-in",
+    "screen": "reminder-unknown-clock",
+    "pair": "pairs/signed-in-reminder-unknown-clock.webp",
+    "reference": "rem-Unknown_clock-and.png",
+    "note": "Approved 480\u00d7800 reminder viewport adapted to the wider M8C panel; fonts use bundled Noto and native rasterization. Due sheet preserves the real book. Sleep remains unavailable unless Android grants screen-off permission. Unknown-clock provider-error fixture: Android trusts the OS clock. Connect to Wi-Fi opens the existing companion Wi-Fi controls; it does not claim time sync."
   },
   {
     "state": "signed-in",

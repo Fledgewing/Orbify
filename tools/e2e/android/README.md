@@ -218,7 +218,8 @@ Final build gallery: after `home.py`, `home_stats.py` and `reader_panels.py`, ru
 It captures every listed reader/companion surface in both real fixture account states,
 uses the reminder service's injected clocks for actual due sheets, and verifies Android
 HOME while signed out, an actual stock-launcher app-drawer icon tap, and ten native open/tap-top/close/HOME
-cycles. `user-path-logcat.txt` retains the complete log for those paths. Original
+cycles. `user-path-logcat.txt` streams all buffers continuously during those paths, so ring-buffer
+rotation cannot drop their beginning. The capture must remain alive until completion. Original
 native PNGs remain unchanged; comparison WebPs normalize only the approval crop.
 The builder retains both Home and ReminderClock fixtures. Identical pending fake
 adapter batches coalesce so cold native sidecar scans cannot queue duplicate work
@@ -249,3 +250,9 @@ using Don’t allow, so native captures retain the ungranted notification state.
 Segmented native settings rows disable baseline alignment so a wrapped Home choice
 fits inside the rounded outline alongside a one-line neighbour. The native-graphics
 PageLayoutTest reproduces the old clipped last line at the M8C logical width.
+
+The final gallery includes all nine Android reminder approvals, including the
+12-hour kit Time picker and the explicit Unknown-clock provider-error fixture.
+The picker uses immutable `twelveHour` metadata; Done previews through the
+companion validator and only the outer Save persists. Unknown-clock UI routes its
+connection action to existing companion Wi-Fi controls without claiming clock sync.
