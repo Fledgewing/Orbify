@@ -1,6 +1,7 @@
 -- SPDX-License-Identifier: AGPL-3.0-or-later
 -- Reader compositions over the shared kit. Callers own data, navigation and gates.
-local Surface={}
+ReaderSurface={}
+local Surface=ReaderSurface
 function Surface.build(sheet)
     local K=BookSyncUI.new();local p=K.px
     local w,h=sheet.screen_w,sheet.screen_h

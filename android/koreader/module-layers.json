@@ -490,6 +490,10 @@
     "layer": "ui",
     "purpose": "Shared presentation primitives and explicit visual gallery."
   },
+  "ko/ui/reader_surface.lua": {
+    "layer": "ui",
+    "purpose": "Reader compositions over the shared kit; callers supply cached rows and gated actions."
+  },
   "ko/ui/gallery.lua": {
     "layer": "ui",
     "purpose": "Shared presentation primitives and explicit visual gallery."

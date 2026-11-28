@@ -226,7 +226,7 @@ class PageLayoutTest {
         layout(a)
         val settings = all(a.window.decorView).filterIsInstance<TextView>().first { it.text.toString().contains("Settings") }
         val card = tagged(a, "status:setup")!!
-        val row = settings.parent as View
+        val row = settings.parent.parent as View
         val column = row.parent as ViewGroup
         val after = (column.indexOfChild(row) + 1 until column.childCount).map { column.getChildAt(it) }.first { it.height > Ui.dp(a, 12) }
         assertEquals("Setup comes right after Other apps / Settings", card, after)
