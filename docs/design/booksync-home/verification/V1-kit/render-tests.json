@@ -1,0 +1,62 @@
+[
+  {
+    "component": "pill",
+    "size": "264x104"
+  },
+  {
+    "component": "pill-solid",
+    "size": "264x104"
+  },
+  {
+    "component": "pill-outline",
+    "size": "388x104"
+  },
+  {
+    "component": "icon-tile",
+    "size": "200x200"
+  },
+  {
+    "component": "card",
+    "size": "654x384"
+  },
+  {
+    "component": "cover-image",
+    "size": "152x228"
+  },
+  {
+    "component": "cover-placeholder",
+    "size": "152x228"
+  },
+  {
+    "component": "progress",
+    "size": "882x24"
+  },
+  {
+    "component": "progress-empty",
+    "size": "282x12"
+  },
+  {
+    "component": "progress-full",
+    "size": "282x12"
+  },
+  {
+    "component": "segments",
+    "size": "700x104"
+  },
+  {
+    "component": "toggle-on",
+    "size": "112x64"
+  },
+  {
+    "component": "toggle-off",
+    "size": "112x64"
+  },
+  {
+    "component": "slider",
+    "size": "700x104"
+  },
+  {
+    "component": "row",
+    "size": "588x116"
+  }
+]

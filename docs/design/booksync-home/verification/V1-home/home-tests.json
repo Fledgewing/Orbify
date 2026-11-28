@@ -1,0 +1,25 @@
+{
+  "screens": [
+    "home-1",
+    "home-2",
+    "editor",
+    "picker",
+    "editor-sizes",
+    "editor-saved"
+  ],
+  "render": "native KOReader",
+  "emulator": "emulator-5642",
+  "size": [
+    1404,
+    1872
+  ],
+  "dpi": 300,
+  "server": "opt-in fake ServerAdapter",
+  "assertions": [
+    "59-book fixture",
+    "editor/picker zero queries",
+    "move revision",
+    "resize persisted",
+    "remote cover badge"
+  ]
+}

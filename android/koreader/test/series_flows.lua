@@ -84,14 +84,14 @@ return function(test,eq,ok,E,W,withHost)
             eq(reads[#reads].op,"groups"); eq(reads[#reads].source,"search"); eq(reads[#reads].query.q,"calder")
             ok(h.metrics.rows<=E.Budgets.screens.search.rows); eq(h.metrics.roundTrips,1)
             eq(h.metrics.spawns,0); eq(h.metrics.network,0)
-            tap(h,"Orbit · All 4 ›")
+            tap(h,"Orbit")
             eq(h.series_key,"opaque-series"); eq(reads[#reads].op,"series"); eq(reads[#reads].key,"opaque-series")
             eq(h.metrics.rows,4,"nested previews are charged")
             ok(text(h,"Download the next 1")); ok(text(h,"Read · ★★★★"))
-            tap(h,"›"); eq(h.series_offset,1); eq(reads[#reads].offset,1)
+            tap(h,"Next"); eq(h.series_offset,1); eq(reads[#reads].offset,1)
             h:onPrevious(); eq(h.series_offset,0)
             tap(h,"‹ Back"); eq(h.series_key,nil); eq(settings.query.q,"calder"); eq(settings.query.where,"on-device")
-            tap(h,"Not in a series · All 17 ›")
+            tap(h,"Not in a series")
             eq(h.filter.model.query.without_series,true); eq(h.filter.model.query.q,"calder")
             h:onClose(); eq(h.filter.model.query.group,"series"); eq(h.list_title,"Search")
             h:onClose(); eq(h.list_layout,nil); eq(h.index,home)
@@ -114,14 +114,14 @@ return function(test,eq,ok,E,W,withHost)
                 {{items={},freshness={saved=false}},"offline-without-data","Not saved yet"},
                 {{items={},freshness={saved=true}},"empty","No books"},
                 {{items={{title="Book",key="a",status_text="On server"}},freshness={saved=true},offline=true},"offline-with-data","Offline · saved library"},
-                {{items={{title="Book",key="a",status_text="On device",local_path="fixture.epub"}},remaining_saved=true,freshness={saved=true}},"ready","Every remaining book is on this device."},
+                {{items={{title="Book",key="a",status_text="On device",local_path="fixture.epub"}},remaining_saved=true,freshness={saved=true}},"ready","Every remaining book is on this device"},
             }) do
                 set(case[1]); h:rebuild(); eq(h.catalog_state,case[2]); ok(text(h,case[3]))
                 local found={}
                 local function controls(node,x,y)
                     local at=node.overlap_offset or {0,0}; x,y=x+at[1],y+at[2]
                     if node.callback and node.width and node.height then
-                        ok(node.width>=50 and node.height>=50)
+                        ok(node.width>=E.CatalogUI.kit().px(38) and node.height>=E.CatalogUI.kit().px(38))
                         ok(x>=0 and y>=0 and x+node.width<=h.dimen.w and y+node.height<=h.dimen.h)
                         for _,r in ipairs(found) do ok(not(x<r.x+r.w and r.x<x+node.width and y<r.y+r.h and r.y<y+node.height),"overlapping targets") end
                         found[#found+1]={x=x,y=y,w=node.width,h=node.height}
@@ -139,7 +139,7 @@ return function(test,eq,ok,E,W,withHost)
             h:onClose(); eq(h.series_key,"opaque-series")
             local opened
             E.Library.open=function(row) opened=row.local_path; return true end
-            for _,b in ipairs(buttons(h)) do if b.text=="" then b.callback(); break end end
+            for _,b in ipairs(buttons(h)) do if b.text=="Book" then b.callback(); break end end
             eq(opened,"fixture.epub")
         end)
     end)
@@ -157,10 +157,10 @@ return function(test,eq,ok,E,W,withHost)
             }) do
                 set(case[1]); h:rebuild(); eq(h.catalog_state,case[2])
                 for _,b in ipairs(buttons(h)) do
-                    if b.width and b.height then ok(b.width>=50 and b.height>=50) end
+                    if b.width and b.height then ok(b.width>=E.CatalogUI.kit().px(38) and b.height>=E.CatalogUI.kit().px(38)) end
                     ok(b.text~="Author · 1 book ›","complete authors have no link")
                 end
-                if case[2]=="ready" then ok(text(h,"Author · 1 book")) end
+                if case[2]=="ready" then ok(text(h,"Author"));ok(text(h,"1 book")) end
                 eq(h.metrics.spawns,0); eq(h.metrics.network,0); eq(h.metrics.roundTrips,1)
             end
             local groups={}
@@ -171,7 +171,7 @@ return function(test,eq,ok,E,W,withHost)
             local function targets(node,x,y)
                 local at=node.overlap_offset or {0,0}; x,y=x+at[1],y+at[2]
                 if node.callback and node.width and node.height then
-                    ok(node.width>=50 and node.height>=50)
+                    ok(node.width>=E.CatalogUI.kit().px(38) and node.height>=E.CatalogUI.kit().px(38))
                     ok(x>=0 and y>=0 and x+node.width<=h.dimen.w and y+node.height<=h.dimen.h)
                     for _,r in ipairs(found) do ok(not(x<r.x+r.w and r.x<x+node.width and y<r.y+r.h and r.y<y+node.height),"overlapping grouped targets") end
                     found[#found+1]={x=x,y=y,w=node.width,h=node.height}
@@ -188,7 +188,7 @@ return function(test,eq,ok,E,W,withHost)
             set({items=groups,row_count=25,freshness={saved=true}})
             ok(not pcall(function() h:rebuild() end),"nested row overrun must fail")
             set({items={{title="Orbit",series_key="series",count_text="1 book",partial=false,books={{title="Book",key="one"}},dots={"unread"}}},freshness={saved=true}})
-            h:rebuild(); tap(h,"Orbit · 1 book ›"); eq(h.series_key,"series")
+            h:rebuild(); tap(h,"Orbit"); eq(h.series_key,"series")
         end)
     end)
 

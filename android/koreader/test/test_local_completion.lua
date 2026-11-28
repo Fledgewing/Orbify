@@ -38,27 +38,36 @@ return function(test,eq,ok,here,Cache)
         paints=0
         local view={alive=true,dialog={},paint=function() paints=paints+1 end}
         local e=setmetatable({Library={},SettingsView={},UIManager={}},{__index=_G})
-        e.Library.paint=function() return {localReading=function() return {year=2026,goal_label='Off'} end,flush=function() end} end
+        e.currentTarget=12
+        e.Library.paint=function() return {localReading=function() return {year=2026,target=e.currentTarget,goal_label='Off'} end,flush=function() end} end
         e.Library.localReadingGoal=function(_,done) pending=done end
         e.SettingsView.open=function(_,make) view.make=make;top=view.dialog;return view end
+        e.UIManager.setDirty=function() e.dirty=(e.dirty or 0)+1 end
         e.UIManager.getTopmostVisibleWidget=function() return top end
         e.UIManager.show=function(_,d) top=d;form=d end
         e.UIManager.close=function(_,d) if top==d then top=view.dialog end end
+        e.SettingsPage={new=function(o)
+            o.controls={}
+            local K={px=function(n) return n end,label=function() return {setText=function() end} end,button=function(b) return b end}
+            o.content(K,{},702,0,function(b,_,_,id) o.controls[id]=b end)
+            return o
+        end}
         e.require=function(name)
             eq(name,'ui/widget/inputdialog')
             return {new=function(_,o) o.getInputText=function() return '12' end;o.onShowKeyboard=function() end;return o end}
         end
         setfenv(assert(loadfile(root..'ko/local_reading_settings.lua')),e)()
-        e.LocalReadingSettings.open();view.make()[1].callback();form.buttons[1][3].callback()
+        e.LocalReadingSettings.open();view.make()[1].callback();eq(form.controls["goal-number"].text,"12");form.controls["goal-save"].callback()
         eq(top,view.dialog)
         local reader={};top=reader
         pending({goal_label='2026 · 12 books · This reader only',target=12})
         eq(top,reader);eq(paints,0)
-        top=view.dialog;view.make()[1].callback();form.buttons[1][2].callback()
+        top=view.dialog;view.make()[1].callback();form.controls["goal-off"].callback()
+        e.currentTarget=nil
         pending({goal_label='Off · This reader only'})
         eq(paints,1)
-        view.make()[1].callback();form.buttons[1][3].callback();pending({error='invalid'})
-        eq(paints,2);eq(view.notice,'Enter a number from 1 to 999.')
+        view.make()[1].callback();local editor=form;form.controls["goal-save"].callback()
+        eq(top,editor);eq(e.dirty,1);eq(paints,1)
     end)
 
 end

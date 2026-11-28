@@ -3,7 +3,7 @@ return function(test,eq,ok,E,W,Widget)
     local function withUI(fn)
         local oldScale=E.Device.screen.scaleBySize
         E.Device.screen.scaleBySize=function(_,n) return n end
-        local oldRequire,oldRead,oldRequest=E.require,E.LibraryAdapter.read,E.LibraryAdapter.request
+        local oldRequire,oldRead,oldRequest,oldRefresh=E.require,E.LibraryAdapter.read,E.LibraryAdapter.request,E.Shared.refresh
         local dialogClass=Widget:extend{moveFocusTo=function(self,x,y) self.focus={x,y} end,getButtonById=function() end}
         E.require=function(name)
             if name=="ui/widget/buttondialog" then return dialogClass end
@@ -13,6 +13,7 @@ return function(test,eq,ok,E,W,Widget)
         if E.SettingsView.active then E.SettingsView.active:close() end
         E.require,E.LibraryAdapter.read,E.LibraryAdapter.request=oldRequire,oldRead,oldRequest
         E.Device.screen.scaleBySize=oldScale
+        E.Shared.refresh=oldRefresh
         ok(success,err)
     end
     local function button(view,id)
@@ -123,4 +124,38 @@ return function(test,eq,ok,E,W,Widget)
         local about=groups.about.sub_item_table_func()
         ok(about[1].text:find("Version:",1,true)); ok(about[2].text:find("This reader:",1,true)); eq(about[3].text,"About")
     end)
+    test("Settings owned navigation: replaced pages retire; a locked direct account route stays read only",function()
+        withUI(function()
+            local owner=setmetatable({},{__index=E.OrbitAndroid})
+            local pin=E.Shared.pin_locked
+            E.Shared.refresh=function() end
+            E.Shared.pin_locked=false
+            local first=owner:showSettings("home")
+            local second=owner:showSettings("reading")
+            eq(first.alive,false);eq(first.dialog,nil);eq(second.parent,nil)
+            E.Shared.pin_locked=true
+            local account=owner:showSettings("account")
+            eq(second.alive,false);eq(account.screen,"settings-account")
+            for _,row in ipairs(account.make()) do
+                if row.callback then ok(row.enabled_func and not row.enabled_func(),"account actions respect PIN") end
+            end
+            account.onBack=nil;account:close();E.Shared.pin_locked=pin
+        end)
+    end)
+
+    test("Settings setup: pending setup is an owned row and delayed prompts stay quiet",function()
+        withUI(function()
+            local owner=setmetatable({},{__index=E.OrbitAndroid})
+            local previous=E.Shared.setup_needed
+            E.Shared.refresh=function() end;E.Shared.setup_needed=9
+            local old=Widget:new{ok_text="Fix now"};E.OrbitAndroid.setup_dialog=old;E.UIManager:show(old)
+            local v=owner:showSettings()
+            eq(E.OrbitAndroid.setup_dialog,nil);eq(v.make()[1].text,"Companion setup");eq(v.make()[1].detail,"9 steps")
+            local count=#W.shown
+            owner:maybeSetupPrompt("start");owner:maybeSetupPrompt("resume")
+            eq(#W.shown,count);eq(W.shown[#W.shown],v.dialog)
+            E.Shared.setup_needed=previous
+        end)
+    end)
+
 end

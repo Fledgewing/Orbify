@@ -1,0 +1,12 @@
+{
+  "database_sha256": "7a06ac0422c80931cff8f2a0fc543026866e75a28020a12cdae49ff5bfec183b",
+  "fixture_days": 50,
+  "native": {
+    "empty": "34 sizes; 234 untruncated native labels; 0 days",
+    "seeded": "34 sizes; 243 untruncated native labels; 50 days"
+  },
+  "screens": [
+    "home-2-empty.png",
+    "home-2.png"
+  ]
+}

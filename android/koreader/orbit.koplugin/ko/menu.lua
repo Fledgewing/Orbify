@@ -310,8 +310,10 @@ function OrbitAndroid:menuItems()
                     else self:showSettings("library") end
                 end)
             end
-            local out = {action("Storage · "..(storage.free_label or "Space unavailable").." ›",function() openStorage() end),
-                action("Download folder · "..(storage.folder_label or "Not selected").." ›",function() openStorage("folder") end)}
+            local out = {action("Storage",function() openStorage() end),
+                action("Download folder",function() openStorage("folder") end)}
+            out[1].detail=storage.free_label and (storage.free_label.." free") or "Space unavailable"
+            out[2].detail=storage.folder_label or "Not selected"
             for _,row in ipairs(rows({"keep_copies_current", "offline_cache", "mirror_covers"})) do out[#out+1]=row end
             out[#out+1] = action("Full refresh", function() Library.fullRefresh() end)
             return out
@@ -437,15 +439,21 @@ end
 
 -- The owned Home and reader gear share the existing Settings rows and PIN policy.
 function OrbitAndroid:showSettings(group)
+    if OrbitAndroid.setup_dialog then UIManager:close(OrbitAndroid.setup_dialog);OrbitAndroid.setup_dialog=nil end
     Library.settings.refresh("menu")
     Library.refreshDevice()
     local items={}
     for _,row in ipairs(self:menuItems()) do
         if row.settings_group then items[#items+1]=row end
     end
-    -- Storage and multi-line channel choices use their owned groups. Preserve the
-    -- reader's native Reading route and the other established direct entry points.
-    if group=="library" or group=="updates" then
+    if group=="account" and not Library.settings.status("pin_locked") then return AccountView.open() end
+    local previous=SettingsView.active
+    while previous do
+        local parent=previous.parent
+        previous.onBack=nil;previous.parent=nil;previous:close()
+        previous=parent
+    end
+    if group then
         for _,row in ipairs(items) do if row.settings_group==group then
             local make=row.sub_item_table_func
             return SettingsView.open(row.text,function()
@@ -454,26 +462,36 @@ function OrbitAndroid:showSettings(group)
             end,"settings-"..group,function() self:showSettings() end)
         end end
     end
-    if group and not Library.settings.status("pin_locked") then
-        for _,row in ipairs(items) do
-            if row.settings_group==group then items=row.sub_item_table_func(); break end
-        end
-    end
     if Library.settings.status("pin_locked") then items=self:lockedMenuItems(items) end
-    items=self:settingsPresentation(items)
-    items.icon="appbar.settings"
-    local menu=require("ui/widget/touchmenu"):new{width=Device.screen:getWidth(),tab_item_table={items}}
-    UIManager:show(menu) -- gate: user action (BookSync settings)
-    return menu
+    local icons={account="settings-user",sync="sync",library="settings-download",reading="settings-type",home="home",sleep="settings-moon",updates="arrowU",about="info"}
+    local subtitles={account="Account and logins",sync=SettingsUI.modeLabel(Library.settings.read(),Library.settings.mode()),library="Storage and downloaded books",reading="Fonts, margins and reading controls",home="BookSync Home",sleep="Cover and sleep screen choices",updates=SettingsUI.installed(PATCH_VERSION),about="BookSync "..PATCH_VERSION}
+    return SettingsView.open("BookSync settings",function()
+        local paint=Library.paint("settings")
+        local account,storage,battery=paint:accountState(),paint:storage(),paint:battery()
+        paint:flush()
+        subtitles.account=AccountPlan.summary(account)
+        subtitles.library=storage.folder_label or "Choose a download folder"
+        local fonts=ReadingStyle.pair("font",Library.settings.read("reading_pairs"))
+        local margins=ReadingStyle.pair("margins",Library.settings.read("reading_pairs"))
+        subtitles.reading=ReadingStyle.presets.font[fonts[2]][1].." · "..ReadingStyle.presets.margins[margins[1]][1]:lower().." and "..ReadingStyle.presets.margins[margins[2]][1]:lower().." margins"
+        subtitles.sleep=SettingsUI.value(Library.settings.schema().byKey.sleep_mode,Library.settings.read("sleep_mode"))
+        subtitles.updates=SettingsUI.value(Library.settings.schema().byKey.update_channel,Library.settings.read("update_channel")).." channel · "..PATCH_VERSION
+        if battery.display and battery.display.level and battery.display.level:find("%d") then subtitles.sync=SettingsUI.modeLabel(Library.settings.read(),Library.settings.mode()).." · "..battery.display.level.." battery" end
+        local rows={}
+        local setup=tonumber(Library.settings.status("setup_needed")) or 0
+        if setup>0 then rows[#rows+1]={text="Companion setup",sub="Finish configuring this reader",detail=tostring(setup).." steps",icon="info",callback=Library.companion.openSetup} end
+        for _,item in ipairs(items) do
+            local id=item.settings_group
+            rows[#rows+1]={text=item.text,icon=icons[id],sub=subtitles[id],callback=id and function() self:showSettings(id) end or item.callback}
+        end
+        return rows
+    end,"settings")
 end
 
 function OrbitAndroid:addToMainMenu(menu_items)
-    local entry = { text = _("BookSync"), sub_item_table_func = function()
-        Library.settings.refresh("menu")
-        Library.refreshDevice()
-        if Library.settings.status("pin_locked") then return self:settingsPresentation(self:lockedMenuItems()) end
-        UIManager:scheduleIn(0.5, function() self:maybeSetupPrompt("menu", "menu") end)
-        return self:settingsPresentation(self:menuItems())
+    local entry = { text = _("BookSync"), callback = function(menu)
+        if menu and menu.closeMenu then menu:closeMenu() end
+        self:showSettings()
     end }
     -- Its own top-level entry in Tools, the way plugins and user patches add menus: an item
     -- missing from the menu order goes to the menu its sorting_hint names

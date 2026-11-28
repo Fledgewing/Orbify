@@ -39,6 +39,17 @@ class LocalReadingSettingsTest {
         val input=views(a.window.decorView).filterIsInstance<EditText>().single()
         assertEquals(android.text.InputType.TYPE_CLASS_NUMBER,input.inputType)
         input.setText("12")
+        // Approved form: compact input and adjacent actions, including on the smaller reader.
+        val decor = a.window.decorView
+        val metrics = a.resources.displayMetrics
+        decor.measure(View.MeasureSpec.makeMeasureSpec(metrics.widthPixels, View.MeasureSpec.EXACTLY),
+            View.MeasureSpec.makeMeasureSpec(metrics.heightPixels, View.MeasureSpec.EXACTLY))
+        decor.layout(0, 0, metrics.widthPixels, metrics.heightPixels)
+        val off = texts(a).first { it.text.toString() == "Off" }
+        val save = texts(a).first { it.text.toString() == "Save" }
+        assertEquals("form actions share one row", off.top, save.top)
+        assertTrue("Save follows Off without overlap", save.left >= off.right)
+        assertTrue("a three-digit goal remains a compact field", input.width < metrics.widthPixels / 2)
         texts(a).first {it.text.toString()=="Save"}.performClick()
         waitFor(a,"12 books · This reader only")
         controller.pause().stop().destroy()

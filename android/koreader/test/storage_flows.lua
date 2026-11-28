@@ -84,7 +84,10 @@ return function(test,eq,ok,E,W,withHost)
                 {pattern='dots',fraction=.1},{pattern='white',fraction=.2}})
             E.StorageUI.bar(canvas,parts,0,0,100,10)
             local rects={}
-            canvas[1]:paintTo({paintRect=function(_,x,y,w,h,color) rects[#rects+1]={x=x,y=y,w=w,h=h,color=color} end},0,0)
+            local border
+            canvas[1]:paintTo({paintRect=function(_,x,y,w,h,color) rects[#rects+1]={x=x,y=y,w=w,h=h,color=color} end,
+                paintBorder=function(_,x,y,w,h,line,color,radius) border={w=w,h=h,line=line,radius=radius} end},0,0)
+            eq(border.w,100);eq(border.h,10);eq(border.radius,4);eq(border.line,1)
             eq(rects[2].w,50); eq(rects[2].h,10); eq(rects[2].color,0)
             ok(#rects>8,'hatch and dots must be drawn from proxy rows')
             for _,r in ipairs(rects) do ok(r.x>=0 and r.y>=0 and r.x+r.w<=100 and r.y+r.h<=10) end
@@ -107,7 +110,7 @@ return function(test,eq,ok,E,W,withHost)
             dialog.buttons[1][1].callback(); eq(removed,0)
             ok(click(page,'Remove finished books from device\nFrees 10 MB · 1 book'))
             dialog=W.shown[#W.shown]; dialog.buttons[1][2].callback(); eq(removed,1); eq(#page.data.actions,0)
-            for _,control in ipairs(page.controls) do ok(control.width>=50 and control.height>=50); ok(control.overlap_offset[2]+control.height<=page.dimen.h) end
+            for _,control in ipairs(page.controls) do ok(control.width>=E.CatalogUI.kit().px(52) and control.height>=E.CatalogUI.kit().px(52)); ok(control.overlap_offset[2]+control.height<=page.dimen.h) end
             page:onClose(); eq(E.StorageUI.active,nil)
         end)
     end)
@@ -136,7 +139,7 @@ return function(test,eq,ok,E,W,withHost)
                 E.LibraryAdapter.read=function() return state,400 end
                 local page=E.StorageUI.create(); E.StorageUI.active=page; W.shown={page}
                 eq(page.metrics.rows,1); ok(page.metrics.bytes<=16384)
-                for _,control in ipairs(page.controls) do ok(control.height>=50) end
+                for _,control in ipairs(page.controls) do ok(control.height>=E.CatalogUI.kit().px(52)) end
                 page:onClose()
             end
             E.Companion.workerProblem=function() return 'Update BookSync Companion' end
@@ -187,7 +190,7 @@ return function(test,eq,ok,E,W,withHost)
         withHost(function()
             E.LibraryAdapter.read=function() return data(),700 end
             local page=E.StorageUI.show()
-            ok(click(page,'Catalog cache limit ›'))
+            ok(click(page,'Catalog cache limit\nCovers and details for browsing offline'))
             local dialog=W.shown[#W.shown]
             eq(dialog.title,'Catalog cache limit')
             eq(#dialog.buttons,#E.Cache.STORAGE_LIMITS_MB+1)
@@ -208,7 +211,7 @@ return function(test,eq,ok,E,W,withHost)
             eq(calls,1); eq(page.busy,true)
             local shown=#W.shown
             ok(click(page,'Remove finished books from device\nFrees 10 MB · 1 book'))
-            ok(click(page,'Catalog cache limit ›'))
+            ok(click(page,'Catalog cache limit\nCovers and details for browsing offline'))
             eq(#W.shown,shown); eq(calls,1)
             eq(page.controls[1].enabled,false); eq(page.controls[#page.controls].enabled,true)
             page:onNext(); eq(page.controls[page.focus].text,'Back')
@@ -216,7 +219,7 @@ return function(test,eq,ok,E,W,withHost)
             local old=page[1]; local result=data(); result.actions={}
             done(result); eq(page[1],old); eq(page.busy,false); ok(page.pending_result)
             table.remove(W.shown)
-            page:paintTo({paintRect=function() end},0,0)
+            page:paintTo({paintRect=function() end,paintBorder=function() end,paintRoundedRect=function() end},0,0)
             eq(page.pending_result,nil); eq(#page.data.actions,0); eq(reads,1,"deferred paint never reads again")
             page:onClose()
         end)

@@ -1,7 +1,7 @@
 -- SPDX-License-Identifier: AGPL-3.0-or-later
--- Reuse EndSheet's measured rows and SheetLayout; every datum comes from Library.
+-- Opt-in owned reader sheets; all data and native actions stay behind Library.
 ReaderPanel = {}
-local ReaderSheet = EndSheet:extend{ name="booksync_reader_panel", min_button=50 }
+local ReaderSheet = EndSheet:extend{ name="booksync_reader_panel", is_always_active=true, min_button=50, alpha=.6 }
 
 function ReaderSheet:init()
     EndSheet.init(self)
@@ -39,25 +39,6 @@ function ReaderSheet:control(widget,callback,scrubber)
     if scrubber and not self.focus_index then self.focus_index=#self.focus_controls end
     return widget
 end
-function ReaderSheet:buttonTable(options)
-    for _,row in ipairs(options.buttons) do for _,cell in ipairs(row) do
-        cell.height=math.max(self.metrics.button,cell.height or 0)
-        cell.font_size=cell.font_size or 14; cell.font_bold=false
-    end end
-    local buttons={}
-    for _,row in ipairs(options.buttons) do
-        local cells={}
-        for _,cell in ipairs(row) do
-            local copy={}; for key,value in pairs(cell) do copy[key]=value end
-            copy.text=cell.display_text or cell.text; cells[#cells+1]=copy
-        end
-        buttons[#buttons+1]=cells
-    end
-    options.buttons=buttons
-    local table=require("ui/widget/buttontable"):new(options)
-    for _,row in ipairs(table.buttons_layout or {}) do for _,button in ipairs(row) do self:control(button) end end
-    return table
-end
 function ReaderSheet:touchControl(area,callback)
     self:control(area,callback)
     area.onFocus=function(self) self.focused=true end
@@ -83,217 +64,63 @@ function ReaderSheet:rows()
     end
     return rows
 end
-function ReaderSheet:rowWidget(block,w,h,mt)
-    if block.kind=="reader-tiles" then
-        local group=require("ui/widget/horizontalgroup"):new{}
-        local width=math.floor(w/#block.row.choices)
-        for _,cell in ipairs(block.row.choices) do
-            local Geom=require("ui/geometry")
-            local area=require("ui/widget/container/inputcontainer"):new{
-                dimen=Geom:new{w=width,h=h},
-                require("ui/widget/container/centercontainer"):new{dimen=Geom:new{w=width,h=h},
-                    require("ui/widget/verticalgroup"):new{align="center",
-                        require("ui/widget/iconwidget"):new{icon=cell.icon,width=math.floor(mt.button*.48),height=math.floor(mt.button*.48)},
-                        require("ui/widget/textboxwidget"):new{text=cell.text,width=width-8,
-                            face=require("ui/font"):getFace("cfont",14),alignment="center"}}}}
-            area.ges_events={Tap={require("ui/gesturerange"):new{ges="tap",range=function() return area.dimen end}}}
-            area.onTap=function() cell.callback(); return true end
-            self:touchControl(area,cell.callback)
-            table.insert(group,area)
-        end
-        return group
-    elseif block.kind=="reading-choices" or block.kind=="reader-actions" then
-        local cells=block.row.choices
-        for _,cell in ipairs(cells) do cell.height=mt.button; cell.text_font_size=14; cell.text_font_bold=false end
-        if block.kind=="reader-actions" then
-            for _,cell in ipairs(cells) do cell.icon=nil end
-        end
-        local choices=self:buttonTable{width=w,buttons={cells},zero_sep=true}
-        if block.row.group_label then
-            return require("ui/widget/verticalgroup"):new{align="left",
-                require("ui/widget/textwidget"):new{text=block.row.group_label,max_width=w,
-                    face=require("ui/font"):getFace("cfont",14),bold=true},choices}
-        end
-        return choices
-    elseif block.kind=="reader-header" then
-        local row=block.row
-        local group=require("ui/widget/horizontalgroup"):new{}
-        local Button=require("ui/widget/button")
-        local reserved=0
-        for _,cell in ipairs(row.choices) do reserved=reserved+(cell.width or mt.button) end
-        local titleWidth=w-reserved
-        local title=require("ui/widget/verticalgroup"):new{align="center",
-            require("ui/widget/textwidget"):new{text=row.text,
-                face=require("ui/font"):getFace("cfont",18),max_width=titleWidth,bold=true},
-            require("ui/widget/textwidget"):new{text=row.author or "",
-                face=require("ui/font"):getFace("cfont",12),max_width=titleWidth}}
-        for i,cell in ipairs(row.choices) do
-            if i==2 then
-                table.insert(group,require("ui/widget/container/centercontainer"):new{
-                    dimen=require("ui/geometry"):new{w=titleWidth,h=mt.button},title})
-            end
-            if cell.keep_label then
-                local Geom=require("ui/geometry")
-                local width=cell.width or mt.button
-                local home=require("ui/widget/container/inputcontainer"):new{text=cell.text,dimen=Geom:new{w=width,h=mt.button},
-                    require("ui/widget/container/centercontainer"):new{dimen=Geom:new{w=width,h=mt.button},
-                        require("ui/widget/horizontalgroup"):new{
-                            require("ui/widget/iconwidget"):new{icon=cell.icon,width=math.floor(mt.button*.36),height=math.floor(mt.button*.36)},
-                            require("ui/widget/horizontalspan"):new{width=math.floor(mt.button*.08)},
-                            require("ui/widget/textwidget"):new{text=cell.text,face=require("ui/font"):getFace("cfont",14)}}}}
-                home.ges_events={Tap={require("ui/gesturerange"):new{ges="tap",range=function() return home.dimen end}}}
-                home.onTap=function() cell.callback(); return true end
-                self:touchControl(home,cell.callback); table.insert(group,home)
-            else
-                table.insert(group,self:control(Button:new{text=not cell.icon and cell.text or nil,icon=cell.icon,tooltip=cell.text,callback=cell.callback,
-                    width=cell.width or mt.button,height=mt.button,bordersize=cell.marked and 2 or 0,text_font_size=14}))
-            end
-        end
-        return group
-    elseif block.kind=="reader-grid" then
-        local group=require("ui/widget/horizontalgroup"):new{}
-        for _,row in ipairs(block.row.groups) do
-            local width=math.floor(w/2)
-            table.insert(group,require("ui/widget/verticalgroup"):new{align="left",
-                require("ui/widget/textwidget"):new{text=row.group_label or "",max_width=width,
-                    face=require("ui/font"):getFace("cfont",14),bold=true},
-                self:buttonTable{width=width,buttons={row.choices},zero_sep=true}})
-        end
-        return group
-    elseif block.kind=="reader-position" then
-        local group=require("ui/widget/horizontalgroup"):new{}
-        for i,text in ipairs({block.row.text,block.row.position}) do
-            local width=i==1 and math.floor(w/2) or w-math.floor(w/2)
-            local Align=i==1 and require("ui/widget/container/leftcontainer") or require("ui/widget/container/rightcontainer")
-            table.insert(group,Align:new{
-                dimen=require("ui/geometry"):new{w=width,h=h},
-                require("ui/widget/textwidget"):new{text=text,
-                    face=require("ui/font"):getFace("cfont",14),max_width=width}})
-        end
-        return group
-    elseif block.kind=="reader-lights" then
-        local group=require("ui/widget/horizontalgroup"):new{}
-        for _,r in ipairs(block.row.controls) do
-            local width=math.floor(w/#block.row.controls)
-            local inset=math.floor(mt.button*.24)
-            local Geom=require("ui/geometry")
-            local area=require("ui/widget/container/inputcontainer"):new{dimen=Geom:new{w=width,h=h},
-                require("ui/widget/verticalgroup"):new{align="center",
-                    require("ui/widget/textwidget"):new{text=r.text,face=require("ui/font"):getFace("cfont",14)},
-                    require("ui/widget/progresswidget"):new{width=width-2*inset,height=math.max(4,math.floor(mt.button*.2)),percentage=r.value/100,
-                        ticks={},bordersize=0,radius=0,margin_h=0,margin_v=0}}}
-            area.ges_events={Tap={require("ui/gesturerange"):new{ges="tap",range=function() return area.dimen end}}}
-            area.onTap=function(_,_,ges)
-                if ges and ges.pos then r.set(math.floor(math.max(0,math.min(1,(ges.pos.x-area.dimen.x-inset)/(width-2*inset)))*100+.5)) end
-                return true
-            end
-            self:touchControl(area,function() r.set(math.min(100,r.value+10)) end)
-            table.insert(group,area)
-        end
-        return require("ui/widget/verticalgroup"):new{align="left",
-            require("ui/widget/textwidget"):new{text=#block.row.controls>1 and "Front light & warmth" or "Front light",max_width=w,
-                face=require("ui/font"):getFace("cfont",14),bold=true},group}
-    elseif block.kind=="scrubber" then
-        local r=block.row
-        local owner=self
-        w=w-2*mt.button
-        local Geom=require("ui/geometry")
-        local area=require("ui/widget/container/inputcontainer"):new{
-            dimen=Geom:new{w=w,h=mt.button},
-            require("ui/widget/container/centercontainer"):new{dimen=Geom:new{w=w,h=mt.button},
-                require("ui/widget/progresswidget"):new{width=w,height=math.max(4,math.floor(mt.button*.2)),percentage=r.value or 0,
-                    ticks=r.chapters,last=1,bordersize=0,radius=0,margin_h=0,margin_v=0}}}
-        -- Bookmarks use a second, separate marker track so they remain distinguishable.
-        area.bookmarks=r.bookmarks
-        local paint=area.paintTo
-        function area:paintTo(bb,x,y)
-            if paint then paint(self,bb,x,y) end
-            local thumbWidth,thumbHeight=math.floor(mt.button*.16),math.floor(mt.button*.36)
-            local markWidth,markHeight=math.floor(mt.button*.08),math.floor(mt.button*.2)
-            if r.value then
-                local px=x+math.floor(r.value*(w-thumbWidth))
-                local py=y+math.floor((mt.button-thumbHeight)/2)
-                if owner.scrub_focus then
-                    local border=math.max(2,math.floor(mt.button*.04))
-                    bb:paintRect(px-2*border,py-2*border,thumbWidth+4*border,thumbHeight+4*border,require("ffi/blitbuffer").COLOR_BLACK)
-                    bb:paintRect(px-border,py-border,thumbWidth+2*border,thumbHeight+2*border,require("ffi/blitbuffer").COLOR_WHITE)
-                end
-                bb:paintRect(px,py,thumbWidth,thumbHeight,require("ffi/blitbuffer").COLOR_BLACK)
-            end
-            for _,fraction in ipairs(self.bookmarks or {}) do
-                bb:paintRect(x+math.floor(fraction*(w-markWidth)),y+math.floor(mt.button*.2),
-                    markWidth,markHeight,require("ffi/blitbuffer").COLOR_BLACK)
-            end
-        end
-        area.ges_events={Tap={require("ui/gesturerange"):new{ges="tap",range=function() return area.dimen end}}}
-        area.onTap=function(_,_,ges)
-            if ges and ges.pos then r.seek(math.max(0,math.min(1,(ges.pos.x-area.dimen.x)/w))*100) end
-            return true
-        end
-        local previous
-        if r.previous then
-            previous=self:control(require("ui/widget/button"):new{icon="chevron.first",width=mt.button,height=mt.button,callback=r.previous})
-        end
-        self:touchControl(area,function()
-            self.scrub_focus=not self.scrub_focus; self.keyboard_focus=true
-            self:build(); UIManager:setDirty(self,"ui")
-        end)
-        if not self.focus_index then self.focus_index=#self.focus_controls end
-        if previous then
-            return require("ui/widget/horizontalgroup"):new{
-                previous,area,
-                self:control(require("ui/widget/button"):new{icon="chevron.last",width=mt.button,height=mt.button,callback=r.next})}
-        end
-        return area
-    end
-    if block.kind=="footer" then
-        local cells={}
-        for _,row in ipairs(block.items) do cells[#cells+1]={text=row.text,callback=row.action,height=mt.button} end
-        return self:buttonTable{width=w,buttons={cells},zero_sep=true}
-    end
-    local widget=EndSheet.rowWidget(self,block,w,h,mt)
-    if block.kind=="button" then self:control(widget) end
-    return widget
-end
 function ReaderSheet:onClose()
     if self.scrub_focus then
         self.scrub_focus=false; self:build(); UIManager:setDirty(self,"ui")
     else ReaderPanel.close() end
     return true
 end
-function ReaderSheet:onTapAnywhere(_arg, ges)
-    if ges and ges.pos and (self.screen=="reader-bottom-panel"
-        and ges.pos.y < self.screen_h-(self.sheet_h or 0)
-        or self.screen~="reader-bottom-panel" and ges.pos.y > (self.sheet_h or 0)) then
-        ReaderPanel.close(); return true
+function ReaderSheet:onTapAnywhere(_arg,ges)
+    if ges and ges.pos and (ges.pos.y<(self.sheet_y or 0)
+        or ges.pos.y>(self.sheet_y or 0)+(self.sheet_h or 0)
+        or ges.pos.x<self.sheet_x or ges.pos.x>self.screen_w-self.sheet_x) then
+        ReaderPanel.close();return true
     end
     return false
 end
+function ReaderSheet:onCloseDialog() ReaderPanel.close() end
+-- The catalog Details page belongs to the Home/detail slice. Keep its existing
+-- EndSheet presentation while these reader-only surfaces adopt the kit.
+function ReaderSheet:rowWidget(block,w,h,mt)
+    local widget=EndSheet.rowWidget(self,block,w,h,mt)
+    if block.kind=="button" then self:control(widget) end
+    if block.kind=="footer" then
+        for _,row in ipairs(widget.buttons_layout or {}) do for _,button in ipairs(row) do self:control(button) end end
+    end
+    return widget
+end
+local surface
 function ReaderSheet:build()
-    local finish = Budgets.span(self.screen .. ".draw", now_s, log)
-    if self.screen=="reader-bottom-panel" then self.metrics.gap=math.floor(self.metrics.button*.08); self.metrics.pad=math.floor(self.metrics.button*.24) end
+    local finish=Budgets.span(self.screen..".draw",now_s,log)
+    if not surface then
+        surface=setfenv(assert(loadfile(SOURCE_DIR.."/ko/ui/reader_surface.lua")),getfenv(1))()
+    end
     self.focus_controls={}
-    EndSheet.build(self)
+    if self.screen=="details" then
+        EndSheet.build(self)
+        self.sheet_h=self.plan.h;self.sheet_y=0;self.sheet_x=0
+        self.too_small=self.plan.h>self.screen_h
+        self.frame.height=self.sheet_h
+        self[1]=require("ui/widget/container/topcontainer"):new{
+            dimen=require("ui/geometry"):new{w=self.screen_w,h=self.screen_h},self.frame}
+        finish();return
+    end
+    local previous=self[1]
+    surface.build(self)
+    if previous and previous.free then previous:free() end
     if self.keyboard_focus then
         local current=self.focus_controls[self.focus_index or 1]
         if current and current.onFocus then current:onFocus() end
     end
-    self.too_small=self.plan.h>self.screen_h
-    if self.too_small then finish();return end
-    -- Native scale follows physical display dimensions. EndSheet retains measured
-    -- geometry; never silently crop controls to its default 90% sheet cap.
-    self.sheet_h=self.plan.h
-    self.frame.height=self.sheet_h
-    local Container=self.screen=="reader-bottom-panel" and require("ui/widget/container/bottomcontainer")
-        or require("ui/widget/container/topcontainer")
-    self[1] = Container:new{
-        dimen=require("ui/geometry"):new{w=self.screen_w, h=self.screen_h}, self.frame }
     finish()
 end
 function ReaderPanel.close()
     local sheet = ReaderPanel.sheet
     ReaderPanel.sheet = nil
-    if sheet then UIManager:close(sheet) end
+    if sheet then
+        if sheet.search_input then sheet.search_input:onCloseKeyboard() end
+        UIManager:close(sheet)
+    end
 end
 local function button(text, action) return {kind="button", text=text, action=action} end
 
@@ -309,7 +136,7 @@ function ReaderPanel.show(ui, screen, key, reuse, attempt)
     local native=controls and controls.items and controls.items[1] or {}
     local caps = not bottom and paint:read("capabilities", {limit=1}) or {}
     local account=caps.account or {}
-    local m = ReaderPanelPlan.model(result, battery)
+    local m = ReaderPanelPlan.model(result, battery,ui and ui.document and Library.readerMetadata(ui))
     paint:flush()
     local rows = {
         {kind="title", text=m.title}, {kind="label", text=m.author},
@@ -338,7 +165,7 @@ function ReaderPanel.show(ui, screen, key, reuse, attempt)
             {text="A−",font_size=14,callback=action("size",ReaderPanelPlan.fontSize(settings.size,-1),true)},
             {text=ReaderPanelPlan.sizeDots(settings.size),font_size=12,enabled=false,callback=function() end},
             {text="A+",font_size=24,callback=action("size",ReaderPanelPlan.fontSize(settings.size,1),true)}}}
-        local toggles={kind="reading-choices",group_label="Status bar",choices={
+        local toggles={kind="reading-choices",group_label="Status bar",values={settings.status,settings.clock},choices={
             {text=(settings.status and "✓ " or "").."Bottom bar",callback=action("status",nil,true),height=50},
             {text=(settings.clock and "✓ " or "").."Clock",callback=action("clock",nil,true),height=50}}}
         if #quick>0 then
@@ -351,7 +178,7 @@ function ReaderPanel.show(ui, screen, key, reuse, attempt)
         local lights={}
         for _,name in ipairs({"light","warmth"}) do
             if type(settings[name])=="number" then
-                lights[#lights+1]={text=(name=="light" and "Light · " or "Warmth · ")..settings[name],value=settings[name],
+                lights[#lights+1]={text=(name=="light" and "Light · " or "Warmth · ")..settings[name],value=settings[name],name=name,
                     set=function(value) action(name,value,true)() end}
             end
         end
@@ -403,7 +230,7 @@ function ReaderPanel.show(ui, screen, key, reuse, attempt)
         end
         local function cell(r,icon) return {text=r.text,icon=icon,callback=r.action} end
         local header={cell(home,"home")}
-        if sync then header[#header+1]=cell(sync,sync.text=="Sync" and "cre.render.reload" or nil) end
+        if sync then header[#header+1]=cell(sync,"sync") end
         header[#header+1]=cell(settings,"appbar.settings")
         header[#header+1]={text=native.marked and "Remove bookmark" or "Add bookmark",
             icon="bookmark",marked=native.marked,callback=action("bookmark",nil,true)}
@@ -412,11 +239,11 @@ function ReaderPanel.show(ui, screen, key, reuse, attempt)
         rows={
             {kind="reader-header",text=m.title,author=m.author,choices=header},
             {kind="reader-tiles",choices={
-                {text="Contents",icon="book.opened",callback=action("contents")},
+                {text="Contents",icon="toc",callback=action("contents")},
                 {text="Bookmarks",icon="bookmark",callback=action("annotations")},
-                {text="Search",icon="appbar.search",callback=action("search")},
-                {text="Go to",icon="position.marker",callback=action("goto")},cell(info,"info"),cell(stock,"appbar.menu")}},
-            {kind="label",text=(native.chapter or "Chapters not available yet").." · "..m.progress_text},
+                {text="Search",icon="search",callback=action("search")},
+                {text="Go to",icon="goto",callback=action("goto")},cell(info,"info"),cell(stock,"kmenu")}},
+            {kind="label",text=(native.chapter or "Chapters not available yet").." · "..m.progress_text,summary=true},
             {kind="progress",value=m.progress},
             button(m.battery,function() BatteryUI.show() end),
             button("Reading settings",function() ReaderPanel.show(ui,"reader-bottom-panel") end),
@@ -453,7 +280,7 @@ function ReaderPanel.show(ui, screen, key, reuse, attempt)
     local sheet
     if reuse then
         sheet = reuse
-        sheet.model, sheet.display_rows = m, rows
+        sheet.model, sheet.display_rows, sheet.native = m, rows, native
         sheet:build()
         if sheet.too_small then
             ReaderPanel.close()
@@ -462,7 +289,7 @@ function ReaderPanel.show(ui, screen, key, reuse, attempt)
         UIManager:setDirty(sheet, "ui")
     else
         ReaderPanel.close()
-        sheet = ReaderSheet:new{ui=ui, screen=screen, model=m, display_rows=rows}
+        sheet = ReaderSheet:new{ui=ui, screen=screen, model=m, display_rows=rows, native=native}
         if sheet.too_small then
             if sheet.free then sheet:free() end
             if bottom then return ReaderPanel.stockConfig(ui.config) else return ReaderPanel.stockMenu(ui.menu) end
@@ -531,112 +358,119 @@ function OrbitAndroid:onCloseWidget(...)
     return baseClose(self, ...)
 end
 
--- Reader-only shells reuse the measured Home/end-sheet language. Native document
+-- Reader-only kit compositions consume bounded cached windows. Native document
 -- data and navigation stay behind Library; specialist editing remains reachable.
 local function navigationButton(text,action)
     return {kind="button",text=text,action=action}
 end
 local function navigationLimit(kind)
-    local device=require("device")
-    local mt=SheetLayout.metrics(device.screen:getWidth(),function(n) return device.screen:scaleBySize(n) end)
-    mt.button=math.max(mt.button,device.screen:scaleBySize(50))
-    -- Native ButtonTable adds vertical padding outside its requested content
-    -- height. Reserve it (plus separators) before choosing the visible window.
-    local nativeSize=require("ui/size")
-    local padding=type(nativeSize.padding)=="table" and nativeSize.padding.buttontable or device.screen:scaleBySize(4)
-    mt.button=mt.button+2*padding+device.screen:scaleBySize(8)
-    for count=8,1,-1 do
-        local rows={{kind="title"},{kind="label"}}
-        if kind=="search" then rows[#rows+1]={kind="label"} end
-        for _=1,count do rows[#rows+1]={kind="button"} end
-        rows[#rows+1]={kind="reading-choices"}
-        if kind=="search" then rows[#rows+1]={kind="button"} end
-        rows[#rows+1]={kind="button"};rows[#rows+1]={kind="footer"}
-        if SheetLayout.plan(SheetLayout.blocks(rows),mt).h+device.screen:scaleBySize(8)<=device.screen:getHeight() then return count end
-    end
+    local h=require("device").screen:getHeight()/(require("device").screen:getWidth()/702)
+    local usable=math.min(748,h-24)-64-(kind=="contents" and 92 or 168)
+    return math.max(1,math.min(11,math.floor(usable/(kind=="contents" and 52 or kind=="annotations" and 122 or 100))))
 end
-function ReaderPanel.navigation(ui,kind,offset)
+function ReaderPanel.navigation(ui,kind,offset,tab)
     if not (ui and ui.document) or not Library.closeNativeReaderMenus(ui) then return false end
     local document=ui.document
     local limit=navigationLimit(kind)
-    if not limit then return Library.readerNativeAction(ui,kind) end
-    local result=Library.readerWindow(ui,kind,offset or 0,limit)
-    local title=kind=="contents" and "Contents" or kind=="annotations" and "Bookmarks & highlights" or "Search results"
-    local rows={{kind="title",text=title}}
-    rows[#rows+1]={kind="label",text=result.error and "Search unavailable · Native options remain available" or result.unavailable and "Native data not available here" or result.total==0 and (kind=="search" and "No matches" or kind=="contents" and "No chapters" or "No saved items") or
-        (kind=="search" and result.total==128 and "First 128 matches" or tostring(result.total)..(kind=="search" and " matches" or " items"))}
-    if result.query then rows[#rows+1]={kind="label",text=result.query} end
+    local current
+    if kind=="contents" then
+        current=Library.readerInput(ui,true).chapter_index
+        if offset==nil and current then offset=math.floor((current-1)/limit)*limit end
+    end
+    local result=Library.readerWindow(ui,kind,offset or 0,limit,current)
+    local rows={}
+    local title=kind=="contents" and "Contents" or kind=="annotations" and "Bookmarks & highlights" or "Search in this book"
+    rows[1]={kind="title",text=title}
+    rows[2]={kind="label",text=result.error and "Search unavailable" or result.unavailable and "Native data not available here" or tostring(result.total)..(kind=="search" and " matches" or kind=="contents" and " chapters" or " saved items")}
     for index,item in ipairs(result.items or {}) do
         local row=index
-        rows[#rows+1]=navigationButton(string.rep("  ",item.depth)..item.title..(item.location~="" and " · "..item.location or ""),function()
+        rows[#rows+1]={kind="navigation-item",item=item,action=function()
             if ui.document~=document then ReaderPanel.close();return end
-            if Library.readerNavigate(ui,result.token,row) then ReaderPanel.close() else ReaderPanel.navigation(ui,kind,result.offset) end
-        end)
+            if Library.readerNavigate(ui,result.token,row) then ReaderPanel.close() else ReaderPanel.navigation(ui,kind,result.offset,tab) end
+        end}
     end
-    if (result.offset or 0)>0 or result.next then
-        local choices={kind="reading-choices",choices={}}
-        if (result.offset or 0)>0 then choices.choices[#choices.choices+1]={text="Previous",callback=function() if ui.document==document then ReaderPanel.navigation(ui,kind,math.max(0,result.offset-limit)) end end} end
-        if result.next then choices.choices[#choices.choices+1]={text="Next",callback=function() if ui.document==document then ReaderPanel.navigation(ui,kind,result.next) end end} end
-        rows[#rows+1]=choices
+    local function turn(delta)
+        if ui.document==document then ReaderPanel.navigation(ui,kind,math.max(0,(result.offset or 0)+delta*limit),tab) end
     end
-    if kind=="search" then rows[#rows+1]=navigationButton("New search",function() ReaderPanel.close();if ui.document==document then ReaderPanel.searchDialog(ui) end end) end
+    rows[#rows+1]={kind="navigation-pages",previous=(result.offset or 0)>0 and function() turn(-1) end or nil,
+        next=result.next and function() turn(1) end or nil,limit=limit}
     rows[#rows+1]=navigationButton(kind=="annotations" and "Edit saved items in KOReader…" or kind=="search" and "Native search options…" or "Native Contents options…",function()
         ReaderPanel.close();if ui.document==document then Library.readerNativeAction(ui,kind) end
     end)
     rows[#rows+1]={kind="footer",text="Back to book",action=ReaderPanel.close}
     ReaderPanel.close()
-    local finish=Budgets.span("reader-navigation.paint",now_s,log)
-    local sheet=ReaderSheet:new{ui=ui,screen="reader-navigation",display_rows=rows,model={}}
+    local sheet=ReaderSheet:new{ui=ui,screen="reader-navigation",display_rows=rows,model={},navigation_kind=kind,
+        navigation=result,annotation_tab=tab or "Highlights"}
     if sheet.too_small then
         if sheet.free then sheet:free() end
-        finish();return Library.readerNativeAction(ui,kind)
+        return Library.readerNativeAction(ui,kind)
     end
     ReaderPanel.sheet=sheet
     UIManager:show(sheet) -- gate: user action (owned Contents, saved items or search results)
-    finish();return true
+    return true
 end
 function ReaderPanel.goDialog(ui)
     if not (ui and ui.document) then return false end
     local document=ui.document
-    local dialog
-    local function go(percent)
-        if ui.document~=document then UIManager:close(dialog);return end
-        if Library.readerGo(ui,dialog:getInputText(),percent) then UIManager:close(dialog) end
+    local input=Library.readerInput(ui,true)
+    local sheet
+    local function edit(key)
+        if sheet.go_replace and key~="back" then sheet.go_value="" end
+        sheet.go_replace=false
+        sheet.go_error=nil
+        sheet.go_value=ReaderPanelPlan.keypad(sheet.go_value,key)
+        sheet:build();UIManager:setDirty(sheet,"ui")
     end
-    dialog=require("ui/widget/inputdialog"):new{title="Go to page or percent",input="",buttons={
-        {{text="Go to page",callback=function() go(false) end},{text="Go to %",callback=function() go(true) end}},
-        {{text="Native page/flow options…",callback=function() UIManager:close(dialog);if ui.document==document then Library.readerNativeAction(ui,"goto") end end},
-         {text="Back",callback=function() UIManager:close(dialog) end}},
-    }}
-    UIManager:show(dialog) -- gate: user action (approved basic Go to form)
-    dialog:onShowKeyboard();return true
+    local function go()
+        if ui.document~=document then ReaderPanel.close();return end
+        if Library.readerGo(ui,sheet.go_value,sheet.go_percent) then ReaderPanel.close()
+        else sheet.go_error="Enter a valid "..(sheet.go_percent and "percentage" or "page");sheet:build();UIManager:setDirty(sheet,"ui") end
+    end
+    ReaderPanel.close()
+    sheet=ReaderSheet:new{ui=ui,screen="reader-goto",model={},display_rows={},
+        go_value=tostring(input.page or ""),go_replace=true,go_total=input.total,go_edit=edit,go_submit=go}
+    if sheet.too_small then
+        if sheet.free then sheet:free() end
+        return Library.readerNativeAction(ui,"goto")
+    end
+    ReaderPanel.sheet=sheet
+    UIManager:show(sheet) -- gate: user action (owned Go to keypad)
+    return true
+end
+function ReaderPanel.search(ui,query,wholeWords)
+    if not (ui and ui.document) or #query==0 or #query>512 then return false end
+    local document=ui.document
+    ReaderPanel.close()
+    local info=require("ui/widget/infomessage"):new{text="Searching… (tap to cancel)"}
+    UIManager:show(info) -- gate: user action (native cancelable search worker)
+    UIManager:forceRePaint()
+    local accepted=Library.readerSearch(ui,query,info,function(completed)
+        local visible=UIManager:getTopmostVisibleWidget()==info
+        info.dismiss_callback=nil;UIManager:close(info)
+        if completed and visible and ui.document==document then ReaderPanel.navigation(ui,"search") end
+    end,wholeWords)
+    if not accepted then UIManager:close(info);Library.readerNativeAction(ui,"search") end
+    return accepted
 end
 function ReaderPanel.searchDialog(ui)
     if not (ui and ui.document) then return false end
     local document=ui.document
+    local previous=Library.readerWindow(ui,"search",0,1)
     local dialog
     local function search()
-        local query=dialog:getInputText()
-        if #query==0 or #query>512 then return end
-        UIManager:close(dialog)
-        if ui.document~=document then return end
-        local info=require("ui/widget/infomessage"):new{text="Searching… (tap to cancel)"}
-        UIManager:show(info) -- gate: user action (native cancelable search worker)
-        UIManager:forceRePaint()
-        local accepted=Library.readerSearch(ui,query,info,function(completed)
-            local visible=UIManager:getTopmostVisibleWidget()==info
-            -- Trapper resumes this callback from InfoMessage dismissal too.
-            -- Retire the callback before closing, avoiding a nested resume.
-            info.dismiss_callback=nil
-            UIManager:close(info)
-            if completed and visible and ui.document==document then ReaderPanel.navigation(ui,"search") end
-        end)
-        if not accepted then UIManager:close(info);Library.readerNativeAction(ui,"search") end
+        if ui.document~=document then ReaderPanel.close();return end
+        ReaderPanel.search(ui,dialog.search_input:getText(),dialog.search_whole)
     end
-    dialog=require("ui/widget/inputdialog"):new{title="Search this book",input="",buttons={
-        {{text="Search",callback=search},{text="Native search options…",callback=function() UIManager:close(dialog);if ui.document==document then Library.readerNativeAction(ui,"search") end end}},
-        {{text="Back",callback=function() UIManager:close(dialog) end}},
-    }}
-    UIManager:show(dialog) -- gate: user action (approved owned query, native keyboard)
-    dialog:onShowKeyboard();return true
+    ReaderPanel.close()
+    dialog=ReaderSheet:new{ui=ui,screen="reader-search",model={},display_rows={},search_submit=search,
+        search_whole=previous.query==nil or previous.whole_words,search_query=previous.query}
+    if dialog.too_small then
+        if dialog.free then dialog:free() end
+        return Library.readerNativeAction(ui,"search")
+    end
+    ReaderPanel.sheet=dialog
+    UIManager:show(dialog) -- gate: user action (owned query sheet, native keyboard)
+    dialog.search_input:onShowKeyboard()
+    UIManager:setDirty(dialog,"ui")
+    return true
 end

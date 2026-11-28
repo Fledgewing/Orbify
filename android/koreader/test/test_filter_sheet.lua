@@ -32,7 +32,7 @@ return function(test, eq, ok, here, M)
         eq(F.option({label="Short",count=3,selected=false},false).text,"○ Short · 3")
         local m=F.new{query={tags={"Gone"}}}; m:choose("tags",{value="Gone"}); eq(m.query.tags,nil)
     end)
-    test("filter: actual view uses one bounded facet read, returns radios, saves a copy and cancels polling",function()
+    test("filter: actual view uses bounded counts and facets, returns radios, saves a copy and cancels polling",function()
         local timer
         local request, flushes, result, saved, applied, logs= nil,0,{pending=true,items={}},nil,nil,0
         local e=setmetatable({FilterSheet=F,Layout=M.Layout,Budgets=M.Budgets,now_s=function() return 1 end,
@@ -40,24 +40,34 @@ return function(test, eq, ok, here, M)
             Gate={show=function(_,fn) fn() end},
             Library={paint=function(screen)
                 ok(screen=="filter" or screen=="filter-picker")
-                return {facets=function(_,source,q,field,offset,limit) request={source=source,q=q,field=field,offset=offset,limit=limit}; return result end,
+                return {read=function(_,op,args) request=args;request.op=op;return result end,
+                    facets=function(_,source,q,field,offset,limit) request={source=source,q=q,field=field,offset=offset,limit=limit}; return result end,
                     flush=function() flushes=flushes+1 end}
             end},UIManager={show=function() end,close=function() end,scheduleIn=function(_,_,fn) timer=fn end,unschedule=function() timer=nil end}}, {__index=_G})
-        local dialog={new=function(_,v) v.moveFocusTo=function() end; v.getButtonById=function() return {label_widget={}} end; return v end}
+        local Widget={}
+        function Widget:new(v) v=v or {};self.__index=self;return setmetatable(v,self) end
+        function Widget:extend(v) return self:new(v) end
+        function Widget:getSize() return self.dimen or {w=self.width or self.max_width or 0,h=self.height or 20} end
+        e.Device={screen={getHeight=function() return 1200 end,getWidth=function() return 900 end,scaleBySize=function(_,n) return n end}}
+        e.SOURCE_DIR="."
         e.require=function(name)
-            if name=="device" then return {screen={getHeight=function() return 1200 end,getWidth=function() return 900 end,scaleBySize=function(_,n) return n end}} end
-            if name=="ui/size" then return {padding={buttontable=5}} end
-            if name=="ffi/blitbuffer" then return {COLOR_DARK_GRAY=1} end
-            eq(name,"ui/widget/buttondialog"); return dialog
+            if name=="device" then return e.Device end
+            if name=="ui/font" then return {getFace=function() return {} end} end
+            if name=="ffi/blitbuffer" then return {Color8=function(n) return n end,COLOR_BLACK=0,COLOR_WHITE=255} end
+            return Widget
+        end
+        for _,file in ipairs({"ko/ui/kit.lua","ko/ui/catalog.lua"}) do
+            setfenv(assert(loadfile(here.."/../orbit.koplugin/"..file)),e)()
         end
         setfenv(assert(loadfile(here .. "/../orbit.koplugin/ko/filter_sheet.lua")),e)()
         local view=e.FilterView.new{source="search",query={q="stars"},onApply=function(q) applied=q end,onSave=function(q) saved=q end}
-        view:show(); eq(flushes,1); eq(request.limit,8); eq(request.field,nil); ok(view.retry)
+        view:show(); eq(flushes,1); eq(request.op,"counts");eq(request.limit,1); eq(request.field,nil); ok(view.retry)
         result={items={},total=7,freshness={saved=true}}
         timer(); eq(view.total,7); eq(view.retry,nil)
-        view.dialog.buttons[1][1].callback(); eq(request.field,"show")
+        view.dialog.buttons[1][1].callback(); eq(request.field,"show");eq(request.limit,8)
         result={items={{id="unread",label="Unread",value="unread",count=3,selected=false}},total=7,freshness={saved=true}}
-        view:paint(); view.dialog.buttons[1][1].callback()
+        result.items[1].count=0
+        view:paint();ok(view.dialog.buttons[1][1].muted);view.dialog.buttons[1][1].callback()
         eq(view.model.pick,nil); eq(view.model.query.show,"unread")
         local h=view:header(3); ok(h.active); h.chips[1].callback(); eq(view.model.query.show,"all")
         view.dialog.buttons[11][1].callback() -- divider makes the save row 11

@@ -44,6 +44,16 @@ class EmulatorSafetyTest(unittest.TestCase):
         with patch("time.monotonic",side_effect=[0,21]):
             with self.assertRaises(TimeoutError):device.wait_projection()
 
+    def test_fixture_seeds_color_rendering_before_starting_reader(self):
+        source=Path(__file__).with_name("driver.lua").read_text()
+        self.assertLess(source.index('G_reader_settings:makeTrue("color_rendering")'), source.index('UI:scheduleIn(1,run)'))
+        self.assertIn('G_reader_settings:flush()',source)
+        # The seed is installed before the reader process starts, not via a later UI tap.
+        from run import setup
+        import inspect
+        seed=inspect.getsource(setup)
+        self.assertLess(seed.index('device.push(Path(__file__).with_name("driver.lua")'), seed.index('device.shell("am","start","-n","org.koreader.launcher/.MainActivity")'))
+
     def test_color_notice_dismissal_matches_only_the_specific_native_first_run_notice(self):
         device=object.__new__(Emulator);device.command=Mock(return_value="absent")
         self.assertEqual("absent",device.dismiss_color_notice())

@@ -551,8 +551,8 @@ object HomeCommands {
 
     fun forPress(button: HomeButton): String = if (button == HomeButton.SMART) HOME_SMART else HOME
 
-    /** KOReader went away and Home came back: smart mode reopens the book; otherwise a plain start. */
-    fun forUncovered(button: HomeButton): String? = if (button == HomeButton.SMART) HOME_SMART else null
+    /** Every HOME recovery carries navigation too; a plain start may reopen the last book. */
+    fun forUncovered(button: HomeButton): String = forPress(button)
 
     /**
      * FROM extra. We only know for sure Home came from outside KOReader when one of our own pages

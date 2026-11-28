@@ -292,23 +292,27 @@ end
 
 -- The one-time "Setup needs you" box (SetupPrompt). where: given (the menu) or looked up.
 function OrbitAndroid:maybeSetupPrompt(why, where)
+    if (SettingsView and SettingsView.active and SettingsView.active.alive) or (AccountView and AccountView.active and AccountView.active.alive) or (ReaderCompanionView and ReaderCompanionView.active and ReaderCompanionView.active.alive) then return end
     pcall(self.maybeRecommendedLine, self, where)
     local text=Library.setupPrompt(why,where or self:whereNow())
     if not text then return end
-    UIManager:show(ConfirmBox:new{ -- gate: SetupPrompt.decide never shows it in a book
+    OrbitAndroid.setup_dialog=ConfirmBox:new{ -- gate: SetupPrompt.decide never shows it in a book
         text = _(text),
         ok_text = _("Fix now"),
         cancel_text = _("Later"),
         ok_callback = function()
+            OrbitAndroid.setup_dialog=nil
             local ok = Library.companion.openSetup()
             log("setup box: Fix now", ok and "opened the companion" or "FAILED to open the companion")
         end,
         cancel_callback = function()
+            OrbitAndroid.setup_dialog=nil
             -- The companion's own Later: quiet until an update or a step stops working.
             Library.companion.setupLater()
             log("setup box: Later")
         end,
-    })
+    }
+    UIManager:show(OrbitAndroid.setup_dialog) -- gate: explicit setup policy; never over owned settings
 end
 
 ---------------------------------------------------------------------------------------------

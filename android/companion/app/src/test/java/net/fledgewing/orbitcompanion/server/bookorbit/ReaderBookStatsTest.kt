@@ -29,10 +29,11 @@ class ReaderBookStatsTest {
                 db.exec("INSERT INTO book VALUES(2,'other')")
                 db.exec("INSERT INTO page_stat VALUES(2,1,1793534400,9999)")
             }
-            val result=ReaderBookStats.read(root,entry) { JdbcSql(it) }
+            val result=ReaderBookStats.read(root,entry,now=1794312000) { JdbcSql(it) }
             assertEquals(true,result["available"])
             assertEquals(2L,result["pages_read"])
             assertEquals(360L,result["reading_seconds"])
+            assertEquals(9L,result["started_days"])
             assertEquals(3L,result["days_start_to_finish"])
             sidecar.writeText("-- fixture\nreturn "+String(LuaValue.encode(mapOf("summary" to mapOf("status" to "reading","modified" to "2026-11-03"))),Charsets.ISO_8859_1))
             assertNull(ReaderBookStats.read(root,entry) { JdbcSql(it) }["days_start_to_finish"])

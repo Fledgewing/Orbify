@@ -43,20 +43,44 @@ end
 function FinishUI.model(b)
     local paint=Library.paint("end-of-book")
     local m=paint:widget("end-of-book"):read("reader.finish",{path=b.file,document=b.digest,rating=b.summary.rating,limit=3})
+    m=Layout.copy(m or {})
+    local current=paint:reader(b.file)
+    m.book=current.items and current.items[1] or {}
+    m.stats=m.book.stats
+    m.pending=m.pending or current.pending
+    if m.next and m.next.local_path and not m.next.book then
+        local nextBook=paint:reader(m.next.local_path)
+        m.next.book=nextBook.items and nextBook.items[1]
+        m.pending=m.pending or nextBook.pending
+    end
     paint:flush()
-    return m or {title=b.file:match("([^/]+)$"),status=b.summary.status=="complete" and "✓ Marked as finished" or "Not marked as finished",undo=b.summary.status=="complete",can_mark=b.summary.status~="complete",stars=b.summary.rating}
+    if m.title then return m end
+    return {pending=m.pending,book=m.book,title=b.file:match("([^/]+)$"),status=b.summary.status=="complete" and "✓ Marked as finished" or "Not marked as finished",undo=b.summary.status=="complete",can_mark=b.summary.status~="complete",stars=b.summary.rating}
 end
 function FinishUI.showSheet(ui,b)
     FinishUI.closeSheet();FinishUI.card_state=nil
     FinishUI.sheet=EndSheet:new{ui=ui,book=b,model=FinishUI.model(b)}
     UIManager:show(FinishUI.sheet) -- gate: exception (the reader reached the end)
+    FinishUI.pollSheet(FinishUI.sheet)
+end
+function FinishUI.pollSheet(sheet)
+    if FinishUI.sheet_retry then UIManager:unschedule(FinishUI.sheet_retry);FinishUI.sheet_retry=nil end
+    if not (sheet.model and sheet.model.pending) or (sheet.pending_attempts or 0)>=20 then return end
+    sheet.pending_attempts=(sheet.pending_attempts or 0)+1
+    FinishUI.sheet_retry=function()
+        FinishUI.sheet_retry=nil
+        if FinishUI.sheet==sheet and UIManager:getTopmostVisibleWidget()==sheet then FinishUI.refreshSheet(sheet.ui,sheet.book) end
+    end
+    UIManager:scheduleIn(.5,FinishUI.sheet_retry)
 end
 function FinishUI.refreshSheet(ui,b)
     if FinishUI.sheet and FinishUI.sheet.ui==ui and FinishUI.sheet.book==b then
         FinishUI.sheet:update(FinishUI.model(b),FinishUI.card_state)
+        FinishUI.pollSheet(FinishUI.sheet)
     end
 end
 function FinishUI.closeSheet()
+    if FinishUI.sheet_retry then UIManager:unschedule(FinishUI.sheet_retry);FinishUI.sheet_retry=nil end
     local s=FinishUI.sheet;FinishUI.sheet=nil;if s then UIManager:close(s) end
 end
 FinishUI.actions={}

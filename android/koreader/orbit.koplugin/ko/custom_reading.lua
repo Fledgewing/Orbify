@@ -39,7 +39,7 @@ function Editor:rowWidget(block,w,h,mt)
         local _,path,index=Library.readingFace(s.fontIndex,s.face)
         local gutter=self.key=="margins" and math.floor(s.margins*w/require("device").screen:getWidth()) or 12
         local BB=require("ffi/blitbuffer")
-        local face=Font:getFace(path,20,index)
+        local face=Font:getFace(path,Device.screen:getWidth()/702*16*1000/Device.screen:scaleBySize(1000),index)
         local delta=self.key=="font" and s.weight or self.key=="contrast" and s.contrast*3 or 0
         -- A private face keeps the cached UI font unchanged. Give each positive step a
         -- distinct synthesis strength, and negative steps a lighter preview ink.
@@ -56,13 +56,14 @@ function Editor:rowWidget(block,w,h,mt)
             end
         end
         local ink=delta<0 and BB.Color8 and BB.Color8(math.floor(math.min(200,-delta*60))) or BB.COLOR_BLACK
-        local border,padding=1,4
+        local scale=Device.screen:getWidth()/702
+        local border,padding=math.max(1,math.floor(scale)),math.floor(8*scale)
         local preview=require("ui/widget/textboxwidget"):new{
-            text="She sat down on the iron bench with the book open on her knees.",
+            text="She sat down on the iron bench with the book open on her knees. There were things she knew and things she did not.",
             face=face,_face_adjusted=true,width=math.max(1,w-2*gutter-2*border-2*padding),
             line_height=self.key=="spacing" and s.spacing-1 or .35,
-            bold=delta>0,fgcolor=ink}
-        return require("ui/widget/container/framecontainer"):new{width=w,bordersize=border,margin=0,padding=0,padding_left=gutter,padding_right=gutter,
+            bold=false,fgcolor=ink}
+        return require("ui/widget/container/framecontainer"):new{width=w,height=math.floor(68*scale),radius=math.floor(10*scale),bordersize=border,margin=0,padding=0,padding_left=gutter,padding_right=gutter,
             background=self.key=="margins" and BB.COLOR_LIGHT_GRAY or BB.COLOR_WHITE,
             require("ui/widget/container/framecontainer"):new{bordersize=0,margin=0,padding=padding,background=BB.COLOR_WHITE,preview}}
     end
@@ -93,7 +94,24 @@ function Editor:build()
     local b=Budgets.get("screens","reading-custom-" .. self.key)
     assert(#rows<=b.rows,"Custom editor row budget exceeded")
     assert(Budgets.check(b,{rows=#rows,bytes=0,spawns=0,roundTrips=0,network=0,snapshotBytes=0}))
-    EndSheet.build(self)
+    local K=BookSyncUI.new();local p=K.px
+    local choices={}
+    for _,r in ipairs(rows) do if r.fontIndex then
+        local selected=r.text:find("^● ")~=nil
+        choices[#choices+1]={text=r.text:gsub("^● ",""):gsub("^○ ",""),radio=selected,bold=selected,callback=r.action,h=p(52),size="body",rule=true,serif=r.fontIndex~=4}
+    end end
+    self[1]=SettingsPage.new{title=rows[1].text,subtitle="Used when you pick Custom in the reading panel. Changes apply straight away.",
+        modal=true,startY=p(76),w=p(self.key=="margins" and 640 or 598),h=p(self.key=="font" and (#choices*52+312) or 306),rows=choices,onBack=function() C.close() end,
+        content=function(_,c,w,y,put)
+            local stepY=y+p(12)
+            K.label(c,self.key=="font" and "Weight" or ({spacing="Line height",contrast="Ink strength",margins="Side margins"})[self.key],p(24),stepY+p(13),p(240),"body",{bold=true})
+            put(K.button{text="−",w=p(52),variant="outline",callback=function() step(-1) end},w-p(270),stepY,"less")
+            K.label(c,self.key=="font" and string.format("Weight %+d",record.weight) or ReadingStyle.label(record,self.key),w-p(203),stepY+p(12),p(135),"body",{bold=true})
+            put(K.button{text="+",w=p(52),variant="outline",callback=function() step(1) end},w-p(76),stepY,"more")
+            local preview=self:rowWidget({row={preview=true}},w-p(48),p(90),self.metrics)
+            put(preview,p(24),stepY+p(64),"preview")
+            put(K.button{text="Done",w=p(84),variant=self.key=="margins" and "outline" or nil,callback=function() C.close() end},p(24),stepY+p(145),"done")
+        end}
     finish()
 end
 function Editor:refresh()
@@ -145,10 +163,10 @@ function C.settingsRows(ui)
         end end
         rows[#rows+1]={text_func=function()
             local p=ReadingStyle.pair(key,Library.settings.read("reading_pairs"))
-            return ReadingStyle.names[key] .. " choices: " .. ReadingStyle.presets[key][p[1]][1] .. " / " .. ReadingStyle.presets[key][p[2]][1]
-        end,sub_item_table=choices}
+            return (key=="margins" and "Margin" or ReadingStyle.names[key]) .. " choices: " .. (key=="font" and ReadingStyle.presets[key][p[2]][1] or ReadingStyle.presets[key][p[1]][1] .. " and " .. ReadingStyle.presets[key][p[2]][1])
+        end,sub=key=="font" and "The panel shows Book’s own · Literary · Custom" or nil,sub_item_table=choices}
         rows[#rows+1]={menu_item_id="booksync-custom-" .. key,text_func=function() return "Custom " .. ReadingStyle.names[key]:lower() .. ": " .. ReadingStyle.label(Library.readingCustom(),key) end,
-            callback=function(menu)
+            sub=key=="font" and "Pick the font and its weight" or nil,callback=function(menu)
                 C.open(key,ui,function()
                     -- Keep the originating menu and its selected row alive under the editor.
                     if menu and menu.updateItems then menu:updateItems(menu.page,"booksync-custom-" .. key) end

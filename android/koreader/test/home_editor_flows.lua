@@ -1,19 +1,37 @@
 -- SPDX-License-Identifier: AGPL-3.0-or-later
 return function(test,eq,ok,E,W,Widget,withHost)
     local function click(editor,text,nth)
-        local match=0
-        for _,button in ipairs(editor[1][1]) do if button.text==text and button.callback then
-            match=match+1; if match==(nth or 1) then return button.callback() end
-        end end
+        local match=0;local seen={}
+        local function visit(node)
+            if type(node)~="table" or seen[node] then return false end;seen[node]=true
+            if node.text==text and node.callback then match=match+1;if match==(nth or 1) then node.callback();return true end end
+            for _,child in ipairs(node) do if visit(child) then return true end end
+            return node.buttons and visit(node.buttons) or false
+        end
+        if visit(editor) then return end
+        if text=="Move ‹" or text=="Move ›" or text=="Delete page" then click(editor,"Pages");if visit(W.shown[#W.shown]) then return end end
         error("missing control: "..text)
     end
     local function editor()
         E.S.home_layout=E.Layout.default()
         local host=E.HomeHost.create()
         E.HomeHost.active=host; W.shown={host}
-        click(host,"Edit")
+        E.HomeEditor.show(host)
         return W.shown[#W.shown],host
     end
+    test("Home editor: a changed query never borrows an unrelated cached preview",function()
+        withHost(function(_,reads)
+            local e,host=editor();local p=E.Layout.editorPage(e.model.document,1).placements[2]
+            p.settings.query={q="a different saved filter"}
+            local render=E.HomeWidgets.renderers.booklist;local captured;local before=#reads
+            E.HomeWidgets.renderers.booklist=function(_,snapshot) captured=snapshot;return Widget:new{} end
+            local success,err=pcall(function()
+                E.HomeEditor.preview(host,p,{w=300,h=200},1)
+                eq(captured.state,"empty");eq(#reads,before,"preview remains query-free")
+            end)
+            E.HomeWidgets.renderers.booklist=render;ok(success,err)
+        end)
+    end)
     test("Home editor: Settings shortcuts reuse rename and reset confirmation",function()
         withHost(function()
             E.S.home_layout=E.Layout.default()
@@ -53,9 +71,8 @@ return function(test,eq,ok,E,W,Widget,withHost)
             click(e,"→"); eq(m.document.revision,revision+1)
             local p=E.Layout.editorPage(m.document,1)
             eq(p.placements[2].x,2); eq(p.placements[3].x,0)
-            click(e,"Size"); local sizes=W.shown[#W.shown]
-            eq(sizes.title,"Widget size")
-            sizes.buttons[5][1].callback() -- 2×2 -> 2×1, not a no-op size choice
+            click(e,"Size");eq(E.Layout.editorPage(m.document,1).placements[2].h,3,"next fitting span")
+            click(e,"Size") -- Skip blocked wide spans and cycle to 2×1.
             eq(E.Layout.editorPage(m.document,1).placements[2].w,2)
             eq(E.Layout.editorPage(m.document,1).placements[2].h,1)
             click(e,"Remove"); eq(#m:page().placements,5); eq(m.selected,nil)
@@ -77,8 +94,8 @@ return function(test,eq,ok,E,W,Widget,withHost)
             -- Default Home is full: all allowed spans are tried before a new page is added.
             local n=#m.document.pages
             local hero
-            for i,id in ipairs(E.HomeEditor.available({})) do if id=="continue-reading" then hero=i end end
-            local per=math.max(1,math.min(3,math.floor((e.dimen.h-150)/150)))
+            for i,id in ipairs(E.HomeEditor.choices({})) do if id=="continue-reading" then hero=i end end
+            local per=5
             e.picker=math.floor((hero-1)/per)+1; e:rebuild()
             click(e,"Add",(hero-1)%per+1) -- Find across picker pages as the installed catalog grows.
             eq(#m.document.pages,n+1); eq(m:page().name,"Reading")
@@ -119,7 +136,7 @@ return function(test,eq,ok,E,W,Widget,withHost)
             -- If a move projects/validates another page, accessing it fails.
             m.document.pages[2]=setmetatable({}, {__index=function() error("unrelated page touched") end})
             m.document.pages[1].placements[2].settings.title=string.rep("x",100000)
-            m.selected="also"
+            m.selected="also";e:rebuild()
             local calls=#reads
             click(e,"→"); eq(#reads,calls)
             ok(e.metrics.rows<=128); ok(e.metrics.drawNodes<=208)

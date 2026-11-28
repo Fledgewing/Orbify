@@ -21,9 +21,10 @@ Budgets.screens.editor.drawNodes = 208
 Budgets.screens.editor.rows = 128
 Budgets.screens.editor.bytes = 0
 Budgets.screens.editor.roundTrips = 0
-Budgets.screens["editor-picker"] = budget(3, 0, 100)
+Budgets.screens["editor-picker"] = budget(5, 0, 100)
 Budgets.screens["editor-picker"].roundTrips = 0
-Budgets.screens["editor-picker"].drawNodes = 24
+-- Retained editor background plus five bounded illustrated choices.
+Budgets.screens["editor-picker"].drawNodes = 208
 -- Picker pages inherit the same filter screen limits, including one worker round-trip.
 Budgets.screens["filter-picker"] = budget(24, 16384, 50)
 Budgets.libraryBootstrap = budget(1,16384,50)
@@ -132,8 +133,9 @@ Budgets.screens["settings-sleep-choices"].displayRows = 10
 Budgets.screens["catalog-refresh"] = budget(1,16384,50)
 Budgets.screens["catalog-refresh"].roundTrips = 0
 
--- One finish summary plus two selected cards; recommendation review has ten settings.
-Budgets.screens["end-of-book"] = budget(3,16384,50)
+-- Finish summary + two selected cards, current reader and optional local next cover.
+-- All five materialized rows share one bounded worker batch.
+Budgets.screens["end-of-book"] = budget(5,16384,50)
 Budgets.widgets["end-of-book"] = budget(3,16384,50)
 Budgets.screens["settings-recommendations"] = budget(10,16384,50)
 Budgets.screens["settings-recommendations"].displayRows=18
@@ -167,7 +169,7 @@ Budgets.screens["series-downloads"] = budget(11,16384,50)
 Budgets.screens["series-downloads"].displayRows=15
 
 -- Cached native navigation: one summary plus eight rows, no render-time IO.
-Budgets.screens["reader-navigation"] = budget(9,16384,50)
+Budgets.screens["reader-navigation"] = budget(12,16384,50)
 Budgets.screens["reader-navigation"].roundTrips=0
 
 Budgets.screens["settings-reading-statistics"] = budget(1, 16384, 50)

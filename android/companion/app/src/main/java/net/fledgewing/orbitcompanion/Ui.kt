@@ -188,7 +188,7 @@ abstract class EinkActivity : Activity() {
     fun page(scroll: Boolean = true): LinearLayout {
         val keepY = scrollView?.scrollY ?: 0
         scrollView = null
-        val p = Ui.dp(this, 20)
+        val p = Ui.dp(this, CompanionStyle.PAGE_INSET)
         val pinned = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(Ui.PAPER)
@@ -266,7 +266,7 @@ object Ui {
 
     const val ROW_DP = 76
     /** A status row's height (Ui.row compact): read, rarely tapped. */
-    const val INFO_ROW_DP = 48
+    const val INFO_ROW_DP = 64
     const val BUTTON_DP = 88
     /** The fixed gap between a row's text and its control. */
     const val ROW_GAP_DP = 16
@@ -275,7 +275,7 @@ object Ui {
 
     fun dp(ctx: Context, v: Int): Int = (v * ctx.resources.displayMetrics.density + 0.5f).toInt()
 
-    fun box(ctx: Context, fill: Int, stroke: Int = INK, strokeDp: Int = 2, radiusDp: Int = 8, oval: Boolean = false): GradientDrawable =
+    fun box(ctx: Context, fill: Int, stroke: Int = INK, strokeDp: Int = 2, radiusDp: Int = CompanionStyle.CARD_RADIUS, oval: Boolean = false): GradientDrawable =
         GradientDrawable().apply {
             if (oval) shape = GradientDrawable.OVAL else cornerRadius = dp(ctx, radiusDp).toFloat()
             setColor(fill)
@@ -294,10 +294,23 @@ object Ui {
         TextView(ctx).apply {
             text = s
             setTextColor(color)
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, sp)
-            if (bold) typeface = Typeface.DEFAULT_BOLD
-            includeFontPadding = true
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, CompanionStyle.textSize(ctx, sp))
+            typeface = if (bold) CompanionStyle.strong else CompanionStyle.sans
+            includeFontPadding = false
+            setLineSpacing(0f, 1.15f)
         }
+
+    /** Native form controls inherit the same body floor as every drawn row. */
+    fun input(ctx: Context): android.widget.EditText = android.widget.EditText(ctx).apply {
+        setTextSize(TypedValue.COMPLEX_UNIT_SP, CompanionStyle.textSize(ctx, CompanionStyle.BODY))
+        typeface = CompanionStyle.sans
+    }
+
+    fun checkBox(ctx: Context, label: String): android.widget.CheckBox = android.widget.CheckBox(ctx).apply {
+        text = label
+        setTextSize(TypedValue.COMPLEX_UNIT_SP, CompanionStyle.textSize(ctx, CompanionStyle.BODY))
+        typeface = CompanionStyle.sans
+    }
 
     fun clickable(v: View, onClick: (() -> Unit)?, onLong: (() -> Unit)? = null) {
         v.isSoundEffectsEnabled = false
@@ -306,17 +319,34 @@ object Ui {
         if (onLong != null) v.setOnLongClickListener { onLong(); true }
     }
 
-    fun button(ctx: Context, label: CharSequence, solid: Boolean = false, heightDp: Int = BUTTON_DP, sp: Float = 22f, onClick: () -> Unit): TextView =
+    fun button(ctx: Context, label: CharSequence, solid: Boolean = false, heightDp: Int = BUTTON_DP, sp: Float = 22f, radiusDp: Int = CompanionStyle.CARD_RADIUS, onClick: () -> Unit): TextView =
         text(ctx, label, sp, bold = true, color = if (solid) PAPER else INK).apply {
             gravity = Gravity.CENTER
             minHeight = dp(ctx, heightDp)
-            val p = dp(ctx, 12)
+            val p = dp(ctx, if (radiusDp == CompanionStyle.FORM_RADIUS) CompanionStyle.FORM_BUTTON_INSET else 12)
             setPadding(p, p / 2, p, p / 2)
             background = if (solid) {
-                pressable(box(ctx, INK), box(ctx, MID))
+                pressable(box(ctx, INK, radiusDp = radiusDp), box(ctx, MID, radiusDp = radiusDp))
             } else {
-                pressable(box(ctx, PAPER), box(ctx, PRESSED))
+                pressable(box(ctx, PAPER, radiusDp = radiusDp), box(ctx, PRESSED, radiusDp = radiusDp))
             }
+            clickable(this, onClick)
+        }
+
+    /** Launcher secondary tile: outlined circle above its label, as in the approved launcher. */
+    fun launcherTile(ctx: Context, symbol: String, label: String, onClick: () -> Unit): LinearLayout =
+        LinearLayout(ctx).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            minimumHeight = dp(ctx, CompanionStyle.TILE_HEIGHT)
+            background = pressable(box(ctx, PAPER), box(ctx, PRESSED))
+            addView(text(ctx, symbol, 32f, bold = true).apply {
+                gravity = Gravity.CENTER
+                val size = dp(ctx, CompanionStyle.TILE_ICON)
+                layoutParams = LinearLayout.LayoutParams(size, size).apply { bottomMargin = dp(ctx, 6) }
+                background = box(ctx, PAPER, oval = true)
+            })
+            addView(text(ctx, label, CompanionStyle.TILE_TYPE).apply { gravity = Gravity.CENTER })
             clickable(this, onClick)
         }
 
@@ -325,14 +355,19 @@ object Ui {
         HeaderBar(ctx).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            addView(text(ctx, title, 30f, bold = true), LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+            addView(text(ctx, title, CompanionStyle.TITLE, bold = true), LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
             if (action != null && onAction != null) {
                 addView(
-                    button(ctx, action, heightDp = 64, sp = 20f, onClick = onAction),
+                    text(ctx, action, CompanionStyle.ACTION, bold = true).apply {
+                        gravity = Gravity.CENTER
+                        minHeight = dp(ctx, 56)
+                        setPadding(dp(ctx, 16), 0, 0, 0)
+                        clickable(this, onAction)
+                    },
                     LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT),
                 )
             }
-            setPadding(0, 0, 0, dp(ctx, 12))
+            setPadding(0, dp(ctx, 8), 0, dp(ctx, 14))
         }
 
     /** A list row: label (+ small line) on the left, a value or control on the right, a thin rule below. */
@@ -344,12 +379,12 @@ object Ui {
         onClick: (() -> Unit)? = null,
         onLong: (() -> Unit)? = null,
         left: View? = null,
-        /** A status line, not a setting: shorter, so the main view fits on one screen. */
+        /** A status line: approved launcher type, with natural wrapping and scrolling. */
         compact: Boolean = false,
     ): LinearLayout = RowLayout(ctx).apply {
         orientation = LinearLayout.HORIZONTAL
         gravity = Gravity.CENTER_VERTICAL
-        minimumHeight = dp(ctx, if (compact) INFO_ROW_DP else ROW_DP)
+        minimumHeight = dp(ctx, if (compact) INFO_ROW_DP else if (ctx is SettingsActivity) 112 else ROW_DP)
         val p = dp(ctx, if (compact) 4 else 6)
         setPadding(p, p, p, p)
         val rule = GradientDrawable().apply { setColor(PAPER) }
@@ -364,8 +399,8 @@ object Ui {
         val col = LinearLayout(ctx).apply {
             orientation = LinearLayout.VERTICAL
             tag = ROW_TEXT_TAG
-            addView(text(ctx, label, if (compact) 19f else 21f))
-            if (!sub.isNullOrEmpty()) addView(text(ctx, sub, if (compact) 15f else 16f, color = MID))
+            addView(text(ctx, label, if (compact) CompanionStyle.STATUS_TYPE else if (ctx is LocalReadingSettingsActivity) CompanionStyle.FORM_BODY else CompanionStyle.LABEL, bold = !compact))
+            if (!sub.isNullOrEmpty()) addView(text(ctx, sub, if (compact) CompanionStyle.STATUS_CAPTION else if (ctx is LocalReadingSettingsActivity) CompanionStyle.FORM_CAPTION else CompanionStyle.BODY, color = MID))
         }
         addView(col, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
         if (right != null) {
@@ -385,11 +420,11 @@ object Ui {
         text(ctx, s, sp, bold = bold).apply { gravity = Gravity.END }
 
     /** On/Off control drawn as a box: filled when on. Changes instantly. */
-    fun toggle(ctx: Context, on: Boolean): TextView = text(ctx, if (on) "On" else "Off", 18f, bold = true, color = if (on) PAPER else INK).apply {
+    fun toggle(ctx: Context, on: Boolean): TextView = text(ctx, if (on) "On" else "Off", if (ctx is LauncherActivity) CompanionStyle.STATUS_CAPTION else CompanionStyle.CONTROL, bold = true, color = if (on) PAPER else INK).apply {
         gravity = Gravity.CENTER
         minWidth = dp(ctx, 76)
         minHeight = dp(ctx, 44)
-        background = box(ctx, if (on) INK else PAPER)
+        background = box(ctx, if (on) INK else PAPER, radiusDp = 22)
     }
 
     /** Checklist box: filled with a tick when done. */
@@ -412,8 +447,8 @@ object Ui {
     fun card(ctx: Context): LinearLayout = LinearLayout(ctx).apply {
         orientation = LinearLayout.VERTICAL
         background = box(ctx, PAPER)
-        val p = dp(ctx, 12)
-        setPadding(p, p / 2, p, p / 2)
+        val p = dp(ctx, CompanionStyle.CARD_INSET)
+        setPadding(p, p, p, p)
     }
 
     fun gap(ctx: Context, dpH: Int): View = View(ctx).apply {

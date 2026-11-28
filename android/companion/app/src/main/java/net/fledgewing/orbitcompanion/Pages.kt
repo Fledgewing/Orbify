@@ -153,10 +153,11 @@ class NetTest(private val ctx: Context, private val offFirst: Boolean, private v
 /**
  * The app's icon, SHOW_STATUS and the notification's target. Full mode: the launcher page is the
  * status page (docs/design/companion-settings.md §5.9), so this runs the first-run choice and the
- * "Setup needs you" prompt, then shows the launcher page. Add-on mode: this is the main page, the
+ * "Setup needs you" prompt, then renders the launcher page in its own task root. Add-on mode: this is the main page, the
  * same status and info (StatusPanel) under a Settings button.
  */
-class StatusActivity : EinkActivity() {
+class StatusActivity : LauncherActivity() {
+    override val rendersOnResume = false
     private var prompted = false
 
     override fun onNewIntent(next: Intent) {
@@ -179,8 +180,6 @@ class StatusActivity : EinkActivity() {
         super.onResume()
         if (isFinishing || openHelperLink()) return
         OrbitService.start(this)
-        // Back from Android's install prompt: "Android is checking the update…" while it verifies.
-        Updater.onPageResumed(this)
         // The first-run choice (docs/design/addon-mode.md §4.1): existing installs were set to
         // Full by the migration in OrbitService.start, so only a new install sees it.
         if (!prompted && Prefs(this).mode == null) {
@@ -191,17 +190,14 @@ class StatusActivity : EinkActivity() {
         // "Setup needs you": once per visit, only when a step needs the user or after an update.
         val prompt = !prompted && Attention.shouldPrompt(Attention.evaluate(this, "status page"), this)
         prompted = true
-        if (Prefs(this).mode != OrbitMode.ADDON) {
-            startActivity(Intent(this, LauncherActivity::class.java).putExtra("why_status", true))
-            if (prompt) startActivity(Intent(this, AttentionActivity::class.java))
-            finish()
-            return
-        }
+        // Keep the launcher entry as the visible task root. Finishing this root
+        // after a redirect can uncover the HOME task, which starts KOReader again.
         if (prompt) startActivity(Intent(this, AttentionActivity::class.java))
         render()
     }
 
-    private fun render() {
+    override fun render() {
+        if (Prefs(this).mode != OrbitMode.ADDON) return super.render()
         val root = page()
         root.addView(Ui.header(this, "BookSync Companion", "Settings") { startActivity(Intent(this, SettingsActivity::class.java)) })
         StatusPanel.draw(this, root, wifiRow = true) { if (!isFinishing) render() }
@@ -237,13 +233,13 @@ object StatusPanel {
             watch()
         }
         Updater.readyToDownload(a)?.let { ready ->
-            root.addView(Ui.row(a, "App version", "Update ready: v${ready.first}", Ui.button(a, "Download", heightDp = 56, sp = 18f) {
+            root.addView(Ui.row(a, "App version", "Update ready: v${ready.first}", Ui.button(a, "Download", heightDp = 56, sp = CompanionStyle.STATUS_TYPE) {
                 Pin.run(a) { a.tryStart(ready.second, "BookSync download") }
             }).apply { tag = "status:download" })
         }
         // A background update is ready: "Install" any time here (the notification waits while reading).
         Updater.readyToInstall()?.let { ready ->
-            root.addView(Ui.row(a, "App version", "Update ready: v${Version.parse(ready.first)?.display() ?: ready.first}", Ui.button(a, "Install", heightDp = 56, sp = 18f) {
+            root.addView(Ui.row(a, "App version", "Update ready: v${Version.parse(ready.first)?.display() ?: ready.first}", Ui.button(a, "Install", heightDp = 56, sp = CompanionStyle.STATUS_TYPE) {
                 // Through the PIN keypad like the notification's tap (no PIN or unlocked: Android's prompt).
                 a.startActivity(PinActivity.thenInstall(a, ready.second))
             }).apply { tag = "status:install" })
@@ -254,29 +250,29 @@ object StatusPanel {
                 Net.wifiConnected(a) -> "On · connected"
                 else -> "On · not connected"
             }
-            root.addView(Ui.row(a, "Wi-Fi", right = Ui.value(a, wifi, sp = 18f), compact = true))
+            root.addView(Ui.row(a, "Wi-Fi", right = Ui.value(a, wifi, sp = CompanionStyle.STATUS_TYPE), compact = true))
         }
         val ts = when (Net.appState(a, Net.TAILSCALE_PKG)) {
             AppState.MISSING -> "Not installed"
             AppState.FROZEN -> AppStates.disabledShort(Vendor.disablerLabel(a))
             else -> if (Net.vpnUp(a)) "Connected" else "Not connected"
         }
-        root.addView(Ui.row(a, "Tailscale", right = Ui.value(a, ts, sp = 18f), compact = true).apply { tag = "status:tailscale" })
+        root.addView(Ui.row(a, "Tailscale", right = Ui.value(a, ts, sp = CompanionStyle.STATUS_TYPE), compact = true).apply { tag = "status:tailscale" })
         root.addView(Ui.row(a, "Service", right = Ui.value(a, when {
             OrbitService.running -> "Running"
             !Mode.needsService(a) -> "Off (Add-on, no helper)"
             else -> "Starting"
-        }, sp = 18f), compact = true).apply { tag = "status:service" })
-        root.addView(Ui.row(a, "Screen-off permission", right = Ui.value(a, if (Net.adminActive(a)) "Granted" else "Not granted", sp = 18f), compact = true))
+        }, sp = CompanionStyle.STATUS_TYPE), compact = true).apply { tag = "status:service" })
+        root.addView(Ui.row(a, "Screen-off permission", right = Ui.value(a, if (Net.adminActive(a)) "Granted" else "Not granted", sp = CompanionStyle.STATUS_TYPE), compact = true))
         root.addView(Ui.row(a, "Battery", "hours left, % per hour, by setting, history", Ui.value(a, "›"), onClick = {
             a.startActivity(Intent(a, BatteryActivity::class.java))
         }, compact = true))
         root.addView(Ui.gap(a, 8))
         val card = Ui.card(a)
-        card.addView(Ui.row(a, "Network", right = Ui.value(a, Status.networkLine(a), sp = 18f), compact = true))
-        card.addView(Ui.row(a, "Last sleep sync", null, Ui.value(a, Status.lastSleepSync(a), sp = 18f), compact = true))
-        card.addView(Ui.row(a, "Last wake network ready in", right = Ui.value(a, Status.lastNetReady(a), sp = 18f), compact = true))
-        card.addView(Ui.row(a, "Wi-Fi turns off", right = Ui.value(a, Status.wifiTimer(a), sp = 18f), compact = true))
+        card.addView(Ui.row(a, "Network", right = Ui.value(a, Status.networkLine(a), sp = CompanionStyle.STATUS_TYPE), compact = true))
+        card.addView(Ui.row(a, "Last sleep sync", null, Ui.value(a, Status.lastSleepSync(a), sp = CompanionStyle.STATUS_TYPE), compact = true))
+        card.addView(Ui.row(a, "Last wake network ready in", right = Ui.value(a, Status.lastNetReady(a), sp = CompanionStyle.STATUS_TYPE), compact = true))
+        card.addView(Ui.row(a, "Wi-Fi turns off", right = Ui.value(a, Status.wifiTimer(a), sp = CompanionStyle.STATUS_TYPE), compact = true))
         root.addView(card)
         // The same summary as the Setup page (docs/design/companion-checklist.md §3.8).
         if (setup) {
@@ -679,7 +675,7 @@ object Setup {
         val signed = PluginReport.signedInRow(prefs.reportSignedIn, runningV)
         list.add(Check("library account", signed.done && !signed.pending,
             when { signed.pending -> "Checking… open KOReader once"; signed.done -> "Signed in"; else -> "Not signed in" },
-            pending = signed.pending, action = if (signed.pending) null else "Sign in", id = "signed_in", short = "Signed in") { a ->
+            pending = signed.pending, action = if (signed.pending) null else "Sign in", id = "signed_in", short = "Signed in", optional = true) { a ->
             Koreader.start(a, "setup: sign in to library", HomeCommands.SIGNIN)
         })
         val rec = PluginReport.recommendedRow(prefs.reportRecommended, prefs.reportConflicts, runningV)

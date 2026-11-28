@@ -30,7 +30,7 @@ local LOGIC = {
     "logic/reading_style.lua", "logic/account.lua", "logic/settings_ui.lua", "logic/reader_panel.lua", "logic/budgets.lua", "logic/widget_registry.lua", "logic/layout.lua", "logic/filter_sheet.lua", "logic/reading_stats.lua", "logic/local_widgets.lua", "logic/storage.lua", "logic/battery_widget.lua", "logic/home_host.lua", "logic/home_editor.lua", "logic/booklist.lua", "logic/series.lua",
 }
 local KO = {
-    "ko/base.lua", "ko/service_notices.lua", "ko/jni.lua", "ko/companion.lua", "ko/library_bootstrap.lua", "ko/layout_store.lua", "ko/library_services.lua", "ko/retirement.lua", "ko/settings.lua", "ko/shared.lua",
+    "ko/base.lua", "ko/ui/kit.lua", "ko/ui/catalog.lua", "ko/ui/settings_page.lua", "ko/ui/gallery.lua", "ko/service_notices.lua", "ko/jni.lua", "ko/companion.lua", "ko/library_bootstrap.lua", "ko/layout_store.lua", "ko/library_services.lua", "ko/retirement.lua", "ko/settings.lua", "ko/shared.lua",
     "ko/net.lua", "ko/wifi.lua", "ko/updater.lua",
     "ko/background.lua", "ko/runtime.lua", "ko/clicks_channel.lua", "ko/keys.lua",
     "ko/library_lifecycle.lua", "ko/module.lua", "ko/start.lua", "ko/home_lifecycle.lua", "ko/home.lua", "ko/sleep.lua", "ko/reading_sync.lua",

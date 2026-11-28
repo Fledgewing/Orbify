@@ -1,5 +1,10 @@
 -- SPDX-License-Identifier: MIT
 -- Test-only user patch installed on a dedicated emulator, never packaged with BookSync.
+-- Seed the native first-run preference before reader.lua:195 tests it. This late
+-- user patch runs at reader.lua:190, while G_reader_settings is already open.
+-- A known emulator color screen needs no first-run notice over a reviewed sheet.
+G_reader_settings:makeTrue("color_rendering")
+G_reader_settings:flush()
 local UI=require("ui/uimanager")
 local base="/sdcard/koreader/e2e-"
 local running=false

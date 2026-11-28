@@ -44,6 +44,7 @@ def build(out: Path):
     sleep=sources / "OrbitService.kt"
     sleep.write_text(sleep.read_text().replace('internal fun reminderSleepNow(): String = sleepNow("reminder") ?: "ok"',
         'internal fun reminderSleepNow(): String = if(ReminderClock.failSleep()) "unavailable" else sleepNow("reminder") ?: "ok"'))
+    shutil.copyfile(Path(__file__).with_name("HomeFixture.kt"), sources / "HomeFixture.kt")
     manifest=destination / "app/src/main/AndroidManifest.xml"
     manifest.write_text(manifest.read_text().replace("<application", '<application android:testOnly="true"',1).replace("</application>", '<receiver android:name=".CrashFixtureReceiver" android:exported="true" android:process=":crash_fixture" /><activity android:name=".CrashFixtureActivity" android:exported="true" android:process=":crash_fixture" /></application>'))
     subprocess.run(["./gradlew", "assembleDebug"],cwd=destination,check=True)

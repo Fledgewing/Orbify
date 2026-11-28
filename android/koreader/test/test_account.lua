@@ -43,6 +43,7 @@ return function(test,eq,ok,here)
         end} end
         return nativeRequire(name)
     end
+    e.SettingsPage={new=function(o) o.onClose=o.onBack;return o end}
     e.Device={screen={getWidth=function() return 700 end,scaleBySize=function(_,n) return n end}}
     e.now_s=function() return 1 end; e.log=function() end
     e.UIManager={show=function(_,d) current=d; shown[#shown+1]=d end,close=function(_,d) if current==d then current=nil end end,
@@ -103,6 +104,24 @@ return function(test,eq,ok,here)
         local count=#shown; completion({error="unauthorized"}); eq(#shown,count)
         local invalidations=0; e.Library.changed=function(ev) eq(ev.kind,"account"); invalidations=invalidations+1 end
         v:close(); eq(invalidations,1); e.Library.changed=function() end
+    end)
+
+    test("account summary: signed-out guidance and signed-in ordered value rows",function()
+        local v=e.AccountView.open()
+        v.state={signedIn=false};v:paint()
+        eq(#v.dialog.rows,2);eq(v.dialog.rows[1].text,"Sign in to your server")
+        ok(v.dialog.rows[1].sub);eq(v.dialog.rows[2].text,"Until you sign in")
+        v.state={signedIn=true,username="reader",server="https://fixture.example.test",sync=login("account"),opds=login("account")};v:paint()
+        local names={"Signed in as","Your server","Connection","What BookSync set up","Sign in again…","Sign out","LOGINS","Sync login","OPDS login"}
+        eq(#v.dialog.rows,#names)
+        for i,name in ipairs(names) do eq(v.dialog.rows[i].text,name) end
+        ok(v.dialog.rows[5].sub);ok(v.dialog.rows[6].sub);ok(v.dialog.rows[7].section)
+        eq(v.dialog.rows[8].detail,"Set up by your account");ok(v.dialog.rows[8].callback)
+        v.result={"Sync login: Found","OPDS login: Created"};v.page="result";v:paint()
+        eq(v.dialog.fitContent,true);eq(v.dialog.h,nil)
+        v.state={signedIn=false,sync={},opds={}};v.page="summary";v:paint()
+        eq(#v.dialog.rows,2);eq(v.dialog.rows[1].text,"Sign in to your server");eq(v.dialog.rows[2].text,"Until you sign in")
+        v:close()
     end)
 
 end

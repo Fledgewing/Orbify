@@ -47,6 +47,7 @@ object ServerCommands {
             "catalog.control" -> LibraryAccount.catalogControl(ctx,args["owner"] as? String ?: throw IllegalArgumentException("owner"),text("action"),args["manual"]==true,::finish)
             "covers.acquire" -> if (args["reference"] != null)
                 LibraryAccount.acquireCoverReference(ctx,text("reference"),args["refresh"]==true,args["owner"] as? String ?: throw IllegalArgumentException("owner"),::finish)
+                else if (text("key").startsWith("device:book:")) Worker.localCommand(ctx,op,args,::finish)
                 else LibraryAccount.acquireCover(ctx,text("key"),::finish)
             "downloads.start" -> {
                 val key = args["key"] as? String ?: throw IllegalArgumentException("key")

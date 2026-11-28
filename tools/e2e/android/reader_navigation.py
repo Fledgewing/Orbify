@@ -19,7 +19,10 @@ def review(device,out):
             if time.monotonic()>deadline: raise TimeoutError("native reader navigation did not complete")
             time.sleep(.2)
     def input_action(value,row,column):
-        return 'local input;for _,window in ipairs(UI._window_stack) do if window.widget.setInputText then input=window.widget end end;assert(input);input:setInputText('+json.dumps(value,ensure_ascii=False)+');input.buttons['+str(row)+']['+str(column)+'].callback();return true'
+        return ('local input=assert(ReaderPanel.sheet);'
+                'if input.search_input then input.search_input:setText('+json.dumps(value,ensure_ascii=False)+');input.search_submit() '
+                'else input.go_value='+json.dumps(value)+';input.go_percent='+('true' if column==2 else 'false')+';input.go_submit() end;return true')
+
     try:
         device.command('Library.companion.setupLater();ReaderPanel.close();Library._navReview={enabled=Library.readerMenusEnabled()};Library.open({local_path="/storage/emulated/0/Books/001 Seedfall.epub"});return true')
         wait('local ui=require("apps/reader/readerui").instance;return ui and ui.document and ui.document.file:find("001 Seedfall",1,true) and "ready" or "pending"')

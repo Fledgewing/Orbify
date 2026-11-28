@@ -15,17 +15,33 @@ function StorageUI.bar(canvas,parts,x,y,w,h)
             if not part then break end
             local width=math.min(w-offset,math.max(0,math.floor(w*(part.fraction or 0))))
             if part.pattern=="solid" then bb:paintRect(px+offset,py,width,h,u.BB.COLOR_BLACK)
-            elseif part.pattern=="hatch" or part.pattern=="dots" then
-                for dx=0,width-1,4 do
-                    for dy=0,h-1,4 do
-                        local shift=part.pattern=="hatch" and dy%8/2 or 0
-                        if dx+shift<width then bb:paintRect(px+offset+dx+shift,py+dy,1,math.min(2,h-dy),u.BB.COLOR_BLACK) end
+            elseif part.pattern=="hatch" then
+                for dy=0,h-1 do
+                    for dx=-8,width-1,8 do
+                        local left=math.max(0,dx+dy%8);local right=math.min(width,dx+dy%8+3)
+                        if right>left then bb:paintRect(px+offset+left,py+dy,right-left,1,u.BB.COLOR_BLACK) end
                     end
+                end
+            elseif part.pattern=="dots" then
+                for dx=0,width-1,4 do
+                    for dy=0,h-1,4 do bb:paintRect(px+offset+dx,py+dy,1,math.min(2,h-dy),u.BB.COLOR_BLACK) end
                 end
             end
             offset=offset+width
         end
-        bb:paintRect(px,py,w,1,u.BB.COLOR_BLACK); bb:paintRect(px,py+h-1,w,1,u.BB.COLOR_BLACK)
+        local radius=math.min(math.floor(h/2),Device.screen:scaleBySize(4))
+        for dy=0,radius-1 do
+            local distance=radius-dy-.5
+            local inset=math.max(0,math.ceil(radius-math.sqrt(math.max(0,radius*radius-distance*distance))-.5))
+            if inset>0 then
+                bb:paintRect(px,py+dy,inset,1,u.BB.COLOR_WHITE)
+                bb:paintRect(px+w-inset,py+dy,inset,1,u.BB.COLOR_WHITE)
+                bb:paintRect(px,py+h-dy-1,inset,1,u.BB.COLOR_WHITE)
+                bb:paintRect(px+w-inset,py+h-dy-1,inset,1,u.BB.COLOR_WHITE)
+            end
+        end
+        bb:paintBorder(px,py,w,h,math.max(1,Device.screen:scaleBySize(1)),u.BB.COLOR_BLACK,radius)
+
     end
     HomeWidgets.put(canvas,bar,x,y)
 end
@@ -107,6 +123,7 @@ function StorageUI.create(mode,onCollection,onReturn,caps)
         end
     end
     function Page:draw()
+        if self.mode=="storage" then return CatalogUI.storage(self) end
         local finish=Budgets.span("storage."..self.mode..".render",now_s,log)
         local s=function(n) return Device.screen:scaleBySize(n) end
         local w,h=self.dimen.w,self.dimen.h; local c=HomeWidgets.canvas(w,h)

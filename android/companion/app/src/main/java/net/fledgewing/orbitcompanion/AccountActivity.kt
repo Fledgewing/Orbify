@@ -4,8 +4,6 @@ import android.os.Bundle
 import android.text.InputFilter
 import android.text.InputType
 import android.view.WindowManager
-import android.widget.CheckBox
-import android.widget.EditText
 
 /** Plain Your server screen. No stored credential is read into an editable field. */
 class AccountActivity : EinkActivity() {
@@ -40,14 +38,14 @@ class AccountActivity : EinkActivity() {
             root.addView(Ui.text(this, "Each login is optional. Signing out of the server account also removes logins it supplied. Logins you entered separately stay.", 18f))
         } else {
             root.addView(Ui.text(this, labels.getValue(kind), 22f, bold = true))
-            fun field(hintText: String, initial: String, type: Int, max: Int) = EditText(this).apply {
+            fun field(hintText: String, initial: String, type: Int, max: Int) = Ui.input(this).apply {
                 hint = hintText; setText(initial); inputType = type; filters = arrayOf(InputFilter.LengthFilter(max))
                 isSaveEnabled = false; setSingleLine(true); root.addView(this)
             }
             val server = field("Server address", serverValue, InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI, 2048)
             val user = field("Username", "", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS, 100)
             val secret = field(if (kind == "sync") "Password or sync key" else "Password", "", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD, 1024)
-            val derived = CheckBox(this).apply { text = "This is the derived sync key"; isSaveEnabled = false }
+            val derived = Ui.checkBox(this, "This is the derived sync key").apply { isSaveEnabled = false }
             if (kind == "sync") root.addView(derived)
             root.addView(Ui.button(this, if (busy) "Saving…" else if (kind == "account") "Sign in" else "Save login", solid = true) {
                 if (!busy) {

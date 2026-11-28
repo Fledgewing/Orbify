@@ -19,8 +19,8 @@ import org.robolectric.annotation.Config
 
 /**
  * The Setup page's states drawn by ChecklistUi against Robolectric (docs/design/emulated-release-tests.md,
- * stage 2; companion-checklist §6): what each state shows, which buttons exist, and that a
- * set-up reader fits on one Boox Page screen (1264 × 1680, xhdpi) without scrolling.
+ * stage 2; companion-checklist §6): what each state shows, which buttons exist, and that
+ * readable type survives a smaller reader viewport without being shrunk to fit.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34], qualifiers = "w632dp-h840dp-port-xhdpi")
@@ -93,7 +93,7 @@ class ChecklistPageTest {
     private fun Checklist.Page.drawn(f: ChecklistUi.Frame = frame) = draw(this, f)
 
     @Test
-    fun allSetFitsOneScreenWithNoScrolling() {
+    fun allSetKeepsReadableTypeAndAllowsScrolling() {
         val root = Checklist.page(Checklist.items(rows)).drawn()
         val t = texts(root)
         assertTrue(t.contains("All set"))
@@ -104,11 +104,19 @@ class ChecklistPageTest {
         assertFalse("no verbs on a set-up reader", buttons(root).any { it in setOf("Sign in", "Allow", "Set", "Fix next") })
         val d = activity.resources.displayMetrics
         assertEquals(1264, d.widthPixels)
-        // EinkActivity.page() pads 20 dp on every side; leave a status bar (24 dp) and a navigation bar (48 dp).
-        val pad = Ui.dp(activity, 20) * 2
+        // Measure all content at the actual page inset; its ScrollView owns the viewport.
+        val pad = Ui.dp(activity, CompanionStyle.PAGE_INSET) * 2
         root.measure(View.MeasureSpec.makeMeasureSpec(d.widthPixels - pad, View.MeasureSpec.EXACTLY), View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED))
-        val room = d.heightPixels - Ui.dp(activity, 72) - pad
-        assertTrue("all-set page is ${root.measuredHeight} px, room $room px", root.measuredHeight <= room)
+        // Round 2: keep the shared readable scale; the real EinkActivity page scrolls.
+        assertTrue("all groups retain their touch height", root.measuredHeight >= Ui.dp(activity, Ui.ROW_DP) * 4)
+        fun verify(v: View) {
+            if (v is TextView && v.text.any { it.isLetterOrDigit() }) {
+                val minimum = CompanionStyle.MIN_BODY * (632f / 749f) * d.scaledDensity
+                assertTrue("${v.text}: text was shrunk to fit", v.textSize >= minimum - 0.5f)
+            }
+            if (v is ViewGroup) (0 until v.childCount).forEach { verify(v.getChildAt(it)) }
+        }
+        verify(root)
     }
 
     @Test
